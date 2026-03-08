@@ -9,6 +9,7 @@ class SettingsProvider with ChangeNotifier {
   static const String _keyButtonSize = 'button_size';
   static const String _keyButtonSpacing = 'button_spacing';
   static const String _keyButtonRadius = 'button_radius';
+  static const String _keyScreenOrientation = 'screen_orientation';
 
   int _defaultSpeed = 128; // 0-255, varsayılan orta hız
   bool _vibrationEnabled = true;
@@ -20,6 +21,9 @@ class SettingsProvider with ChangeNotifier {
   double _buttonSpacing = 8.0; // 0-30 arası
   double _buttonRadius = 14.0; // 0-30 arası
 
+  // Ekran yönlendirme ayarı
+  ScreenOrientation _screenOrientation = ScreenOrientation.landscape;
+
   int get defaultSpeed => _defaultSpeed;
   bool get vibrationEnabled => _vibrationEnabled;
   CommandMode get commandMode => _commandMode;
@@ -27,6 +31,7 @@ class SettingsProvider with ChangeNotifier {
   double get buttonSize => _buttonSize;
   double get buttonSpacing => _buttonSpacing;
   double get buttonRadius => _buttonRadius;
+  ScreenOrientation get screenOrientation => _screenOrientation;
 
   /// Ayarları yükle
   Future<void> loadSettings() async {
@@ -38,6 +43,12 @@ class SettingsProvider with ChangeNotifier {
       _buttonSize = prefs.getDouble(_keyButtonSize) ?? 70.0;
       _buttonSpacing = prefs.getDouble(_keyButtonSpacing) ?? 8.0;
       _buttonRadius = prefs.getDouble(_keyButtonRadius) ?? 14.0;
+
+      final orientationName = prefs.getString(_keyScreenOrientation) ?? 'landscape';
+      _screenOrientation = ScreenOrientation.values.firstWhere(
+        (o) => o.name == orientationName,
+        orElse: () => ScreenOrientation.landscape,
+      );
 
       final modeName = prefs.getString(_keyCommandMode) ?? 'simple';
       _commandMode = CommandMode.values.firstWhere(
@@ -122,6 +133,16 @@ class SettingsProvider with ChangeNotifier {
     } catch (e) {}
   }
 
+  /// Ekran yönlendirmesini ayarla
+  Future<void> setScreenOrientation(ScreenOrientation orientation) async {
+    _screenOrientation = orientation;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyScreenOrientation, orientation.name);
+    } catch (e) {}
+  }
+
   /// Tüm ayarları sıfırla
   Future<void> resetToDefaults() async {
     _defaultSpeed = 128;
@@ -131,6 +152,7 @@ class SettingsProvider with ChangeNotifier {
     _buttonSize = 70.0;
     _buttonSpacing = 8.0;
     _buttonRadius = 14.0;
+    _screenOrientation = ScreenOrientation.landscape;
     notifyListeners();
 
     try {
@@ -141,6 +163,7 @@ class SettingsProvider with ChangeNotifier {
       await prefs.remove(_keyButtonSize);
       await prefs.remove(_keyButtonSpacing);
       await prefs.remove(_keyButtonRadius);
+      await prefs.remove(_keyScreenOrientation);
     } catch (e) {
       // Silme hatası sessizce işlenir
     }
@@ -175,6 +198,48 @@ extension CommandModeExtension on CommandMode {
         return 'Temel yön kontrolleri';
       case CommandMode.advanced:
         return 'Detaylı motor kontrolü';
+    }
+  }
+}
+
+/// Ekran yönlendirme seçenekleri
+enum ScreenOrientation {
+  portrait,  // Sadece dikey
+  landscape, // Sadece yatay
+  auto,      // Otomatik (her iki yön)
+}
+
+extension ScreenOrientationExtension on ScreenOrientation {
+  String get displayName {
+    switch (this) {
+      case ScreenOrientation.portrait:
+        return 'Dikey (Portrait)';
+      case ScreenOrientation.landscape:
+        return 'Yatay (Landscape)';
+      case ScreenOrientation.auto:
+        return 'Otomatik';
+    }
+  }
+
+  String get description {
+    switch (this) {
+      case ScreenOrientation.portrait:
+        return 'Sadece dikey mod';
+      case ScreenOrientation.landscape:
+        return 'Sadece yatay mod';
+      case ScreenOrientation.auto:
+        return 'Cihaz döndürüldüğünde otomatik değişir';
+    }
+  }
+
+  String get icon {
+    switch (this) {
+      case ScreenOrientation.portrait:
+        return '📱';
+      case ScreenOrientation.landscape:
+        return '🖥️';
+      case ScreenOrientation.auto:
+        return '🔄';
     }
   }
 }

@@ -60,6 +60,24 @@ class UpdateService {
     );
   }
 
+  /// Eski APK dosyalarını temizle (depolama optimizasyonu)
+  static Future<void> _cleanOldApks(Directory dir) async {
+    try {
+      final files = dir.listSync();
+      for (var entity in files) {
+        if (entity is File && entity.path.endsWith('.apk')) {
+          // Uygulamamızın APK dosyalarını sil
+          final fileName = entity.path.split(Platform.pathSeparator).last;
+          if (fileName.startsWith('app-update') || fileName.startsWith('mucit')) {
+            await entity.delete();
+          }
+        }
+      }
+    } catch (e) {
+      // Hata durumunda sessizce devam et
+    }
+  }
+
   /// APK dosyasını indir
   /// [downloadUrl] - APK download linki
   /// [onProgress] - İndirme ilerlemesi callback (0.0 - 1.0)
@@ -73,13 +91,10 @@ class UpdateService {
       Directory? dir = await getExternalStorageDirectory();
       dir ??= await getTemporaryDirectory();
 
-      final filePath = '${dir.path}/app-update.apk';
+      // Eski APK'ları temizle (depolama optimizasyonu)
+      await _cleanOldApks(dir);
 
-      // Eski APK varsa sil
-      final file = File(filePath);
-      if (await file.exists()) {
-        await file.delete();
-      }
+      final filePath = '${dir.path}/app-update.apk';
 
       // Dio ile indir (progress tracking ve redirect desteği)
       final dio = Dio();

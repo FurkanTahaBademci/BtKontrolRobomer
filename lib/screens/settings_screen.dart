@@ -191,6 +191,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 16),
 
+          // Ekran Yönlendirme
+          _buildSectionTitle('Ekran Yönlendirme'),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Kontrol ekranının yönlendirmesini seçin',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ...ScreenOrientation.values.map((orientation) {
+                    return RadioListTile<ScreenOrientation>(
+                      contentPadding: EdgeInsets.zero,
+                      title: Row(
+                        children: [
+                          Text(orientation.icon),
+                          const SizedBox(width: 8),
+                          Text(orientation.displayName),
+                        ],
+                      ),
+                      subtitle: Text(
+                        orientation.description,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      value: orientation,
+                      groupValue: settingsProvider.screenOrientation,
+                      onChanged: (value) {
+                        if (value != null) {
+                          settingsProvider.setScreenOrientation(value);
+                        }
+                      },
+                    );
+                  }).toList(),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
           // Geliştirici Modu (Geçici)
           Card(
             child: SwitchListTile(

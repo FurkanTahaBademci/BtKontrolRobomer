@@ -21,18 +21,41 @@ class _RobotControlScreenState extends State<RobotControlScreen> {
   @override
   void initState() {
     super.initState();
-    // Ekranı yatay (landscape) moda ayarla
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
-
+    
     // Varsayılan hızı ayarla
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final settingsProvider = context.read<SettingsProvider>();
       final bluetoothProvider = context.read<BluetoothProvider>();
       bluetoothProvider.updateSpeed(settingsProvider.defaultSpeed);
+      
+      // Ekran yönlendirmesini ayarla
+      _setOrientation(settingsProvider.screenOrientation);
     });
+  }
+
+  void _setOrientation(ScreenOrientation orientation) {
+    switch (orientation) {
+      case ScreenOrientation.portrait:
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.portraitUp,
+          DeviceOrientation.portraitDown,
+        ]);
+        break;
+      case ScreenOrientation.landscape:
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ]);
+        break;
+      case ScreenOrientation.auto:
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.portraitUp,
+          DeviceOrientation.portraitDown,
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ]);
+        break;
+    }
   }
 
   @override
@@ -88,52 +111,96 @@ class _RobotControlScreenState extends State<RobotControlScreen> {
           ],
         ),
         body: SafeArea(
-          child: Row(
-            children: [
-              // Sol taraf - Hız kontrolü ve Acil Dur
-              Expanded(
-                flex: 3,
-                child: SingleChildScrollView(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight:
-                          MediaQuery.of(context).size.height -
-                          MediaQuery.of(context).padding.top -
-                          MediaQuery.of(context).padding.bottom -
-                          56,
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // Bağlantı durumu bilgisi
-                        if (!bluetoothProvider.isConnected)
-                          _buildConnectionLostBanner(bluetoothProvider),
+          child: OrientationBuilder(
+            builder: (context, orientation) {
+              if (orientation == Orientation.portrait) {
+                // Dikey mod - Column layout
+                return SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      // Bağlantı durumu bilgisi
+                      if (!bluetoothProvider.isConnected)
+                        _buildConnectionLostBanner(bluetoothProvider),
 
-                        const SizedBox(height: 8),
+                      const SizedBox(height: 16),
 
-                        // Hız kontrolü
-                        _buildSpeedControl(bluetoothProvider),
+                      // Yön kontrolleri
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _buildDirectionControls(bluetoothProvider),
+                      ),
 
-                        const SizedBox(height: 8),
+                      const SizedBox(height: 24),
 
-                        // Acil dur butonu
-                        _buildStopButton(bluetoothProvider),
+                      // Hız kontrolü
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: _buildSpeedControl(bluetoothProvider),
+                      ),
 
-                        const SizedBox(height: 8),
-                      ],
-                    ),
+                      const SizedBox(height: 16),
+
+                      // Acil dur butonu
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: _buildStopButton(bluetoothProvider),
+                      ),
+
+                      const SizedBox(height: 16),
+                    ],
                   ),
-                ),
-              ),
+                );
+              } else {
+                // Yatay mod - Row layout
+                return Row(
+                  children: [
+                    // Sol taraf - Hız kontrolü ve Acil Dur
+                    Expanded(
+                      flex: 3,
+                      child: SingleChildScrollView(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight:
+                                MediaQuery.of(context).size.height -
+                                MediaQuery.of(context).padding.top -
+                                MediaQuery.of(context).padding.bottom -
+                                56,
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // Bağlantı durumu bilgisi
+                              if (!bluetoothProvider.isConnected)
+                                _buildConnectionLostBanner(bluetoothProvider),
 
-              // Sağ taraf - Yön kontrolleri
-              Expanded(
-                flex: 4,
-                child: Center(
-                  child: _buildDirectionControls(bluetoothProvider),
-                ),
-              ),
-            ],
+                              const SizedBox(height: 8),
+
+                              // Hız kontrolü
+                              _buildSpeedControl(bluetoothProvider),
+
+                              const SizedBox(height: 8),
+
+                              // Acil dur butonu
+                              _buildStopButton(bluetoothProvider),
+
+                              const SizedBox(height: 8),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Sağ taraf - Yön kontrolleri
+                    Expanded(
+                      flex: 4,
+                      child: Center(
+                        child: _buildDirectionControls(bluetoothProvider),
+                      ),
+                    ),
+                  ],
+                );
+              }
+            },
           ),
         ),
       ),
