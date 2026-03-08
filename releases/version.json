@@ -1,10 +1,10 @@
 {
-  "latestVersion": "1.0.1",
-  "versionCode": 2,
-  "downloadUrl": "https://github.com/FurkanTahaBademci/BtKontrolRobomer/releases/download/v1.0.1/app-release.apk",
-  "releaseNotes": "🚀 İlk Güncelleme\n\n✨ Yeni Özellikler:\n- Otomatik güncelleme sistemi eklendi\n- Bluetooth bağlantı performansı iyileştirildi\n- Responsive tasarım optimizasyonları\n\n🐛 Düzeltmeler:\n- Küçük hatalar giderildi\n- Kullanıcı arayüzü iyileştirmeleri",
+  "latestVersion": "1.0.2",
+  "versionCode": 3,
+  "downloadUrl": "https://github.com/FurkanTahaBademci/BtKontrolRobomer/releases/download/v1.0.2/app-release.apk",
+  "releaseNotes": "🚀 Test Güncellemesi\n\n✨ Yeni Özellikler:\n- Bu bir test güncellemesidir\n- Güncelleme dialog'unu test ediyoruz\n- İndirme özelliğini deniyoruz\n\n📝 Not:\nBu test versiyonudur, gerçek APK henüz yüklenmedi.",
   "minRequiredVersion": "1.0.0",
   "forceUpdate": false,
-  "fileSize": "20.5 MB",
+  "fileSize": "21.3 MB",
   "releaseDate": "2026-03-08"
 }
