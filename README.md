@@ -172,7 +172,22 @@ void dur() {
 - Son bağlanan cihazlar üst kısımda görünür
 - Hızlıca yeniden bağlanabilirsiniz
 
-## 🔧 Sorun Giderme
+## � Uygulama Güncelleme
+
+Uygulamayı açtığınızda yeni versiyon bulunursa otomatik olarak kontrol edilir.
+
+> 📖 **Detaylı güncelleme rehberi için**: [UPDATE_GUIDE.md](releases/UPDATE_GUIDE.md) dosyasını okuyun
+> - Adım adım güncelleme talimatları
+> - Sorun çözme rehberi
+> - Manuel kurulum yöntemi
+
+**Hızlı Güncelleme:**
+1. Uygulamayı açın
+2. "Güncelleme Mevcut" dialog'u göreceğiniz
+3. "Şimdi Güncelle" butonuna basın
+4. İndirme başlar → Android yükleyicisi açılır → Yükle
+
+## �🔧 Sorun Giderme
 
 ### Bağlantı Kurulamıyor
 
