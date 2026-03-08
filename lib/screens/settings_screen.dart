@@ -97,7 +97,9 @@ class SettingsScreen extends StatelessWidget {
           Card(
             child: SwitchListTile(
               title: const Text('Geliştirici Modu'),
-              subtitle: const Text('Bağlantı olmadan kontrol ekranını aç (geçici)'),
+              subtitle: const Text(
+                'Bağlantı olmadan kontrol ekranını aç (geçici)',
+              ),
               value: settingsProvider.developerMode,
               onChanged: (value) {
                 settingsProvider.setDeveloperMode(value);
@@ -251,10 +253,7 @@ class SettingsScreen extends StatelessWidget {
                   const SizedBox(height: 8),
                   const Text(
                     'Furkan Taha Bademci',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 12),
                   InkWell(
@@ -270,9 +269,7 @@ class SettingsScreen extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: Colors.blue.shade50,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: Colors.blue.shade200,
-                        ),
+                        border: Border.all(color: Colors.blue.shade200),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -297,10 +294,7 @@ class SettingsScreen extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     'Destek için iletişime geçebilirsiniz',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                 ],
               ),
@@ -332,7 +326,7 @@ class SettingsScreen extends StatelessWidget {
       path: 'tahafurkanbademci@gmail.com',
       query: 'subject=Mucit Akademi Robot Kontrol - Destek',
     );
-    
+
     try {
       if (await canLaunchUrl(emailUri)) {
         await launchUrl(emailUri);

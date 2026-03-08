@@ -70,8 +70,7 @@ class _DeviceScanScreenState extends State<DeviceScanScreen> {
             _buildScanButton(bluetoothProvider),
 
             // Geliştirici Modu - Test Butonu
-            if (settingsProvider.developerMode)
-              _buildDevModeButton(),
+            if (settingsProvider.developerMode) _buildDevModeButton(),
 
             // Hata mesajı
             if (bluetoothProvider.errorMessage != null)
@@ -426,9 +425,7 @@ class _DeviceScanScreenState extends State<DeviceScanScreen> {
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (context) => const RobotControlScreen(),
-            ),
+            MaterialPageRoute(builder: (context) => const RobotControlScreen()),
           );
         },
         icon: const Icon(Icons.bug_report),
