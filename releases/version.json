@@ -1,8 +1,8 @@
 {
-  "latestVersion": "1.0.5",
-  "versionCode": 8,
-  "downloadUrl": "https://github.com/FurkanTahaBademci/BtKontrolRobomer/releases/download/v1.0.5/app-release.apk",
-  "releaseNotes": "🚀 Güncelleme v1.0.5\n\n🧹 Depolama Optimizasyonu:\n- Yeni güncelleme indirilirken eski APK'lar otomatik temizlenir\n- Depolama alanı tasarrufu sağlanır\n- Gereksiz dosyalar kalmaz\n\n✨ Önceki Özellikler:\n- Ekran yönlendirme kontrolü (v1.0.4)\n- Buton özelleştirme (v1.0.3)",
+  "latestVersion": "1.0.6",
+  "versionCode": 9,
+  "downloadUrl": "https://github.com/FurkanTahaBademci/BtKontrolRobomer/releases/download/v1.0.6/app-release.apk",
+  "releaseNotes": "🚀 Güncelleme v1.0.6\n\n🐛 Düzeltmeler:\n- Güncelleme ekranında yazıların okunabilirliği iyileştirildi\n- Titreşim varsayılan olarak kapalı (Kullanıcı ayarlardan açabilir)\n\n🧹 Önceki Özellikler:\n- Eski APK'lar otomatik temizlenir (v1.0.5)\n- Ekran yönlendirme kontrolü (v1.0.4)\n- Buton özelleştirme (v1.0.3)",
   "minRequiredVersion": "1.0.0",
   "forceUpdate": false,
   "fileSize": "21.5 MB",

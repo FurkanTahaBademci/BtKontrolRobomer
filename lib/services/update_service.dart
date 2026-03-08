@@ -68,7 +68,8 @@ class UpdateService {
         if (entity is File && entity.path.endsWith('.apk')) {
           // Uygulamamızın APK dosyalarını sil
           final fileName = entity.path.split(Platform.pathSeparator).last;
-          if (fileName.startsWith('app-update') || fileName.startsWith('mucit')) {
+          if (fileName.startsWith('app-update') ||
+              fileName.startsWith('mucit')) {
             await entity.delete();
           }
         }

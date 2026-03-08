@@ -12,7 +12,7 @@ class SettingsProvider with ChangeNotifier {
   static const String _keyScreenOrientation = 'screen_orientation';
 
   int _defaultSpeed = 128; // 0-255, varsayılan orta hız
-  bool _vibrationEnabled = true;
+  bool _vibrationEnabled = false; // Varsayılan kapalı
   CommandMode _commandMode = CommandMode.simple;
   bool _developerMode = false; // Geçici - sadece runtime, kaydetme yok
 
@@ -39,12 +39,13 @@ class SettingsProvider with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
 
       _defaultSpeed = prefs.getInt(_keyDefaultSpeed) ?? 128;
-      _vibrationEnabled = prefs.getBool(_keyVibrationEnabled) ?? true;
+      _vibrationEnabled = prefs.getBool(_keyVibrationEnabled) ?? false;
       _buttonSize = prefs.getDouble(_keyButtonSize) ?? 70.0;
       _buttonSpacing = prefs.getDouble(_keyButtonSpacing) ?? 8.0;
       _buttonRadius = prefs.getDouble(_keyButtonRadius) ?? 14.0;
 
-      final orientationName = prefs.getString(_keyScreenOrientation) ?? 'landscape';
+      final orientationName =
+          prefs.getString(_keyScreenOrientation) ?? 'landscape';
       _screenOrientation = ScreenOrientation.values.firstWhere(
         (o) => o.name == orientationName,
         orElse: () => ScreenOrientation.landscape,
@@ -146,7 +147,7 @@ class SettingsProvider with ChangeNotifier {
   /// Tüm ayarları sıfırla
   Future<void> resetToDefaults() async {
     _defaultSpeed = 128;
-    _vibrationEnabled = true;
+    _vibrationEnabled = false; // Varsayılan kapalı
     _commandMode = CommandMode.simple;
     _developerMode = false;
     _buttonSize = 70.0;
@@ -204,9 +205,9 @@ extension CommandModeExtension on CommandMode {
 
 /// Ekran yönlendirme seçenekleri
 enum ScreenOrientation {
-  portrait,  // Sadece dikey
+  portrait, // Sadece dikey
   landscape, // Sadece yatay
-  auto,      // Otomatik (her iki yön)
+  auto, // Otomatik (her iki yön)
 }
 
 extension ScreenOrientationExtension on ScreenOrientation {

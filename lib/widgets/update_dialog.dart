@@ -188,7 +188,11 @@ class _UpdateDialogState extends State<UpdateDialog> {
                   ),
                   child: Text(
                     widget.versionInfo.releaseNotes,
-                    style: const TextStyle(fontSize: 13),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey.shade900,
+                      height: 1.4,
+                    ),
                   ),
                 ),
               ],

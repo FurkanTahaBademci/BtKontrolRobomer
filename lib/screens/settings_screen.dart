@@ -201,9 +201,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   Text(
                     'Kontrol ekranının yönlendirmesini seçin',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 12),
                   ...ScreenOrientation.values.map((orientation) {

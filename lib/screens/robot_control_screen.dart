@@ -21,13 +21,13 @@ class _RobotControlScreenState extends State<RobotControlScreen> {
   @override
   void initState() {
     super.initState();
-    
+
     // Varsayılan hızı ayarla
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final settingsProvider = context.read<SettingsProvider>();
       final bluetoothProvider = context.read<BluetoothProvider>();
       bluetoothProvider.updateSpeed(settingsProvider.defaultSpeed);
-      
+
       // Ekran yönlendirmesini ayarla
       _setOrientation(settingsProvider.screenOrientation);
     });
