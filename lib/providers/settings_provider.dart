@@ -6,16 +6,27 @@ class SettingsProvider with ChangeNotifier {
   static const String _keyDefaultSpeed = 'default_speed';
   static const String _keyVibrationEnabled = 'vibration_enabled';
   static const String _keyCommandMode = 'command_mode';
+  static const String _keyButtonSize = 'button_size';
+  static const String _keyButtonSpacing = 'button_spacing';
+  static const String _keyButtonRadius = 'button_radius';
 
   int _defaultSpeed = 128; // 0-255, varsayılan orta hız
   bool _vibrationEnabled = true;
   CommandMode _commandMode = CommandMode.simple;
   bool _developerMode = false; // Geçici - sadece runtime, kaydetme yok
 
+  // Buton özelleştirme ayarları
+  double _buttonSize = 70.0; // 40-120 arası
+  double _buttonSpacing = 8.0; // 0-30 arası
+  double _buttonRadius = 14.0; // 0-30 arası
+
   int get defaultSpeed => _defaultSpeed;
   bool get vibrationEnabled => _vibrationEnabled;
   CommandMode get commandMode => _commandMode;
   bool get developerMode => _developerMode;
+  double get buttonSize => _buttonSize;
+  double get buttonSpacing => _buttonSpacing;
+  double get buttonRadius => _buttonRadius;
 
   /// Ayarları yükle
   Future<void> loadSettings() async {
@@ -24,6 +35,9 @@ class SettingsProvider with ChangeNotifier {
 
       _defaultSpeed = prefs.getInt(_keyDefaultSpeed) ?? 128;
       _vibrationEnabled = prefs.getBool(_keyVibrationEnabled) ?? true;
+      _buttonSize = prefs.getDouble(_keyButtonSize) ?? 70.0;
+      _buttonSpacing = prefs.getDouble(_keyButtonSpacing) ?? 8.0;
+      _buttonRadius = prefs.getDouble(_keyButtonRadius) ?? 14.0;
 
       final modeName = prefs.getString(_keyCommandMode) ?? 'simple';
       _commandMode = CommandMode.values.firstWhere(
@@ -78,12 +92,45 @@ class SettingsProvider with ChangeNotifier {
     }
   }
 
+  /// Buton boyutunu ayarla
+  Future<void> setButtonSize(double size) async {
+    _buttonSize = size.clamp(40.0, 120.0);
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(_keyButtonSize, _buttonSize);
+    } catch (e) {}
+  }
+
+  /// Buton aralığını ayarla
+  Future<void> setButtonSpacing(double spacing) async {
+    _buttonSpacing = spacing.clamp(0.0, 30.0);
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(_keyButtonSpacing, _buttonSpacing);
+    } catch (e) {}
+  }
+
+  /// Buton köşe yuvarlaklığını ayarla
+  Future<void> setButtonRadius(double radius) async {
+    _buttonRadius = radius.clamp(0.0, 30.0);
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(_keyButtonRadius, _buttonRadius);
+    } catch (e) {}
+  }
+
   /// Tüm ayarları sıfırla
   Future<void> resetToDefaults() async {
     _defaultSpeed = 128;
     _vibrationEnabled = true;
     _commandMode = CommandMode.simple;
-    _developerMode = false; // Dev modu da kapat
+    _developerMode = false;
+    _buttonSize = 70.0;
+    _buttonSpacing = 8.0;
+    _buttonRadius = 14.0;
     notifyListeners();
 
     try {
@@ -91,6 +138,9 @@ class SettingsProvider with ChangeNotifier {
       await prefs.remove(_keyDefaultSpeed);
       await prefs.remove(_keyVibrationEnabled);
       await prefs.remove(_keyCommandMode);
+      await prefs.remove(_keyButtonSize);
+      await prefs.remove(_keyButtonSpacing);
+      await prefs.remove(_keyButtonRadius);
     } catch (e) {
       // Silme hatası sessizce işlenir
     }

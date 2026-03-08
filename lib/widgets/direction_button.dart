@@ -11,6 +11,8 @@ class DirectionButton extends StatefulWidget {
   final Function() onReleased;
   final Color? color;
   final bool enableVibration;
+  final double? size;
+  final double? borderRadius;
 
   const DirectionButton({
     super.key,
@@ -21,6 +23,8 @@ class DirectionButton extends StatefulWidget {
     required this.onReleased,
     this.color,
     this.enableVibration = true,
+    this.size,
+    this.borderRadius,
   });
 
   @override
@@ -45,11 +49,12 @@ class _DirectionButtonState extends State<DirectionButton> {
 
   @override
   Widget build(BuildContext context) {
-    // Responsive boyutlandırma - ekran yüksekliğine göre
+    // Özel boyut veya responsive boyutlandırma
     final screenHeight = MediaQuery.of(context).size.height;
-    final buttonSize = screenHeight > 600 ? 70.0 : 60.0;
-    final iconSize = screenHeight > 600 ? 28.0 : 24.0;
-    final fontSize = screenHeight > 600 ? 11.0 : 10.0;
+    final buttonSize = widget.size ?? (screenHeight > 600 ? 70.0 : 60.0);
+    final iconSize = buttonSize * 0.4;
+    final fontSize = buttonSize * 0.15;
+    final radius = widget.borderRadius ?? 14.0;
 
     return Listener(
       onPointerDown: (_) => _handlePressStart(),
@@ -64,7 +69,7 @@ class _DirectionButtonState extends State<DirectionButton> {
               _isPressed
                   ? (widget.color ?? Colors.blue).withOpacity(0.8)
                   : (widget.color ?? Colors.blue),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(radius),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(_isPressed ? 0.1 : 0.3),

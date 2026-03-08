@@ -281,6 +281,9 @@ class _RobotControlScreenState extends State<RobotControlScreen> {
   Widget _buildDirectionControls(BluetoothProvider provider) {
     final settingsProvider = context.watch<SettingsProvider>();
     final vibrationEnabled = settingsProvider.vibrationEnabled;
+    final btnSize = settingsProvider.buttonSize;
+    final btnSpacing = settingsProvider.buttonSpacing;
+    final btnRadius = settingsProvider.buttonRadius;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -293,8 +296,10 @@ class _RobotControlScreenState extends State<RobotControlScreen> {
           onPressed: (cmd) => provider.sendRobotCommand(cmd),
           onReleased: () => provider.sendRobotCommand(RobotCommand.stop),
           enableVibration: vibrationEnabled,
+          size: btnSize,
+          borderRadius: btnRadius,
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: btnSpacing),
         // Sol, Dur, Sağ
         Row(
           mainAxisSize: MainAxisSize.min,
@@ -307,8 +312,10 @@ class _RobotControlScreenState extends State<RobotControlScreen> {
               onPressed: (cmd) => provider.sendRobotCommand(cmd),
               onReleased: () => provider.sendRobotCommand(RobotCommand.stop),
               enableVibration: vibrationEnabled,
+              size: btnSize,
+              borderRadius: btnRadius,
             ),
-            const SizedBox(width: 20),
+            SizedBox(width: btnSpacing + 12),
             DirectionButton(
               command: RobotCommand.right,
               icon: Icons.arrow_forward,
@@ -316,10 +323,12 @@ class _RobotControlScreenState extends State<RobotControlScreen> {
               onPressed: (cmd) => provider.sendRobotCommand(cmd),
               onReleased: () => provider.sendRobotCommand(RobotCommand.stop),
               enableVibration: vibrationEnabled,
+              size: btnSize,
+              borderRadius: btnRadius,
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: btnSpacing),
         // Geri
         DirectionButton(
           command: RobotCommand.backward,
@@ -328,6 +337,8 @@ class _RobotControlScreenState extends State<RobotControlScreen> {
           onPressed: (cmd) => provider.sendRobotCommand(cmd),
           onReleased: () => provider.sendRobotCommand(RobotCommand.stop),
           enableVibration: vibrationEnabled,
+          size: btnSize,
+          borderRadius: btnRadius,
         ),
       ],
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:bt_kontrol_robomer/providers/settings_provider.dart';
 import 'package:bt_kontrol_robomer/providers/connection_history_provider.dart';
 import 'package:bt_kontrol_robomer/services/update_service.dart';
@@ -16,6 +17,21 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  String _appVersion = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) {
+      setState(() => _appVersion = info.version);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final settingsProvider = context.watch<SettingsProvider>();
@@ -97,6 +113,80 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 settingsProvider.setVibrationEnabled(value);
               },
               secondary: const Icon(Icons.vibration),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Buton Özelleştirme
+          _buildSectionTitle('Buton Özelleştirme'),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Canlı Önizleme
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Önizleme',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // Önizleme butonları
+                        _buildButtonPreview(settingsProvider),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Buton Boyutu
+                  _buildSliderRow(
+                    icon: Icons.aspect_ratio,
+                    label: 'Buton Boyutu',
+                    value: settingsProvider.buttonSize,
+                    min: 40,
+                    max: 120,
+                    unit: 'px',
+                    onChanged: (v) => settingsProvider.setButtonSize(v),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Buton Aralığı
+                  _buildSliderRow(
+                    icon: Icons.space_bar,
+                    label: 'Buton Aralığı',
+                    value: settingsProvider.buttonSpacing,
+                    min: 0,
+                    max: 30,
+                    unit: 'px',
+                    onChanged: (v) => settingsProvider.setButtonSpacing(v),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Köşe Yuvarlaklığı
+                  _buildSliderRow(
+                    icon: Icons.rounded_corner,
+                    label: 'Köşe Yuvarlaklığı',
+                    value: settingsProvider.buttonRadius,
+                    min: 0,
+                    max: 30,
+                    unit: 'px',
+                    onChanged: (v) => settingsProvider.setButtonRadius(v),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -231,9 +321,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    'Versiyon 1.0.1',
-                    style: TextStyle(color: Colors.grey),
+                  Text(
+                    'Versiyon $_appVersion',
+                    style: const TextStyle(color: Colors.grey),
                   ),
                   const SizedBox(height: 12),
                   const Text(
@@ -338,6 +428,105 @@ class _SettingsScreenState extends State<SettingsScreen> {
           color: Colors.grey,
         ),
       ),
+    );
+  }
+
+  Widget _buildButtonPreview(SettingsProvider settings) {
+    final size = settings.buttonSize;
+    final spacing = settings.buttonSpacing;
+    final radius = settings.buttonRadius;
+
+    Widget previewBtn(IconData icon) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: Colors.blue,
+          borderRadius: BorderRadius.circular(radius),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Icon(icon, color: Colors.white, size: size * 0.4),
+      );
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        previewBtn(Icons.arrow_upward),
+        SizedBox(height: spacing),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            previewBtn(Icons.arrow_back),
+            SizedBox(width: spacing + 12),
+            previewBtn(Icons.arrow_forward),
+          ],
+        ),
+        SizedBox(height: spacing),
+        previewBtn(Icons.arrow_downward),
+      ],
+    );
+  }
+
+  Widget _buildSliderRow({
+    required IconData icon,
+    required String label,
+    required double value,
+    required double min,
+    required double max,
+    required String unit,
+    required ValueChanged<double> onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 18, color: Colors.blue),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '${value.round()} $unit',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue.shade700,
+                ),
+              ),
+            ),
+          ],
+        ),
+        Slider(
+          value: value,
+          min: min,
+          max: max,
+          divisions: (max - min).round(),
+          onChanged: onChanged,
+        ),
+      ],
     );
   }
 
