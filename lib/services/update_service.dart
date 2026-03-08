@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:bt_kontrol_robomer/models/version_info.dart';
 
 /// Uygulama güncelleme servisi
@@ -68,9 +69,9 @@ class UpdateService {
     Function(double)? onProgress,
   }) async {
     try {
-      // İndirme dizini
-      final dir = await getExternalStorageDirectory();
-      if (dir == null) return null;
+      // İndirme dizini (fallback mekanizması ile)
+      Directory? dir = await getExternalStorageDirectory();
+      dir ??= await getTemporaryDirectory();
 
       final filePath = '${dir.path}/app-update.apk';
 
@@ -80,32 +81,75 @@ class UpdateService {
         await file.delete();
       }
 
-      // Dio ile indir (progress tracking için)
+      // Dio ile indir (progress tracking ve redirect desteği)
       final dio = Dio();
       await dio.download(
         downloadUrl,
         filePath,
         onReceiveProgress: (received, total) {
           if (total != -1 && onProgress != null) {
-            final progress = received / total;
-            onProgress(progress);
+            onProgress(received / total);
           }
         },
+        options: Options(
+          followRedirects: true,
+          maxRedirects: 5,
+          receiveTimeout: const Duration(minutes: 10),
+        ),
       );
 
-      return filePath;
+      // İndirilen dosyayı doğrula
+      final downloadedFile = File(filePath);
+      if (await downloadedFile.exists() && await downloadedFile.length() > 0) {
+        return filePath;
+      }
+      return null;
     } catch (e) {
       return null;
     }
   }
 
   /// İndirilen APK'yı yükle (Android yükleme ekranını aç)
-  static Future<bool> installApk(String filePath) async {
+  /// Returns: null = başarılı, String = hata mesajı
+  static Future<String?> installApk(String filePath) async {
     try {
-      final result = await OpenFilex.open(filePath);
-      return result.type == ResultType.done;
+      // Dosya varlığını kontrol et
+      final file = File(filePath);
+      if (!await file.exists()) {
+        return 'APK dosyası bulunamadı. Lütfen tekrar indirin.';
+      }
+
+      // Bilinmeyen kaynaklardan yükleme izni kontrol et (Android 8+)
+      if (Platform.isAndroid) {
+        var status = await Permission.requestInstallPackages.status;
+        if (!status.isGranted) {
+          status = await Permission.requestInstallPackages.request();
+          if (!status.isGranted) {
+            return 'Bilinmeyen kaynaklardan yükleme izni gerekli.\n\nAyarlar > Uygulamalar > Mucit Akademi > Bilinmeyen uygulamaları yükle seçeneğini açın.';
+          }
+        }
+      }
+
+      // APK'yı aç (yükleme ekranını başlat)
+      final result = await OpenFilex.open(
+        filePath,
+        type: 'application/vnd.android.package-archive',
+      );
+
+      switch (result.type) {
+        case ResultType.done:
+          return null; // Başarılı
+        case ResultType.fileNotFound:
+          return 'APK dosyası bulunamadı.';
+        case ResultType.noAppToOpen:
+          return 'APK dosyasını açacak uygulama bulunamadı.';
+        case ResultType.permissionDenied:
+          return 'Dosya erişim izni reddedildi. Ayarlardan izin verin.';
+        case ResultType.error:
+          return 'APK açılamadı: ${result.message}';
+      }
     } catch (e) {
-      return false;
+      return 'Yükleme hatası: $e';
     }
   }
 

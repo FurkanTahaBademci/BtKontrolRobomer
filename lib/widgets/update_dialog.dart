@@ -46,18 +46,23 @@ class _UpdateDialogState extends State<UpdateDialog> {
           _statusMessage = 'Yükleme hazırlanıyor...';
         });
 
-        // APK'yı yükle
-        final installed = await UpdateService.installApk(filePath);
+        // APK'yı yükle (izin kontrolü dahil)
+        final error = await UpdateService.installApk(filePath);
 
         if (mounted) {
-          if (!installed) {
+          if (error != null) {
             setState(() {
               _isDownloading = false;
-              _statusMessage = 'Yükleme başlatılamadı';
+              _statusMessage = '';
             });
-            _showError('APK yüklenemedi. Lütfen tekrar deneyin.');
+            _showError(error);
+          } else {
+            // Yükleme başlatıldı - kullanıcı yükleyici ile devam edecek
+            setState(() {
+              _isDownloading = false;
+              _statusMessage = 'Yükleme başlatıldı. Yükleyiciyi takip edin.';
+            });
           }
-          // Yükleme başarılı - dialog açık kalır, kullanıcı yükleyecek
         }
       } else {
         if (mounted) {
