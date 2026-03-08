@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:bt_kontrol_robomer/screens/device_scan_screen.dart';
+import 'package:bt_kontrol_robomer/services/update_service.dart';
+import 'package:bt_kontrol_robomer/models/version_info.dart';
+import 'package:bt_kontrol_robomer/widgets/update_dialog.dart';
 
 /// Splash screen - Uygulama açılış ekranı
 class SplashScreen extends StatefulWidget {
@@ -40,14 +43,55 @@ class _SplashScreenState extends State<SplashScreen>
 
     _animationController.forward();
 
-    // 2 saniye sonra ana ekrana geç
-    Future.delayed(const Duration(milliseconds: 2500), () {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const DeviceScanScreen()),
+    // Splash animasyonu ve güncelleme kontrolü
+    _initializeApp();
+  }
+
+  /// Uygulama başlatma ve güncelleme kontrolü
+  Future<void> _initializeApp() async {
+    // Minimum splash süresi (animasyon için)
+    await Future.delayed(const Duration(milliseconds: 2500));
+
+    if (!mounted) return;
+
+    // Güncelleme kontrolü yap
+    await _checkForUpdates();
+
+    // Ana ekrana geç
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const DeviceScanScreen()),
+      );
+    }
+  }
+
+  /// Güncelleme kontrolü
+  Future<void> _checkForUpdates() async {
+    try {
+      final versionInfo = await UpdateService.checkForUpdate();
+      
+      if (versionInfo == null || !mounted) return;
+
+      final currentVersion = await UpdateService.getCurrentVersion();
+      final hasUpdate = VersionInfo.isNewerVersion(
+        currentVersion,
+        versionInfo.latestVersion,
+      );
+
+      if (hasUpdate && mounted) {
+        // Güncelleme dialog'u göster
+        await showDialog(
+          context: context,
+          barrierDismissible: !versionInfo.forceUpdate,
+          builder: (context) => UpdateDialog(
+            versionInfo: versionInfo,
+            forceUpdate: versionInfo.forceUpdate,
+          ),
         );
       }
-    });
+    } catch (e) {
+      // Güncelleme kontrolü başarısız - sessizce devam et
+    }
   }
 
   @override

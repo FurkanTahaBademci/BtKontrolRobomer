@@ -3,11 +3,19 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:bt_kontrol_robomer/providers/settings_provider.dart';
 import 'package:bt_kontrol_robomer/providers/connection_history_provider.dart';
+import 'package:bt_kontrol_robomer/services/update_service.dart';
+import 'package:bt_kontrol_robomer/models/version_info.dart';
+import 'package:bt_kontrol_robomer/widgets/update_dialog.dart';
 
 /// Ayarlar ekranı
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final settingsProvider = context.watch<SettingsProvider>();
@@ -234,6 +242,19 @@ class SettingsScreen extends StatelessWidget {
                     style: TextStyle(fontSize: 13, color: Colors.grey),
                   ),
                   const Divider(height: 32),
+                  // Güncelleme Kontrolü
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _checkForUpdates,
+                      icon: const Icon(Icons.system_update, size: 20),
+                      label: const Text('Güncelleme Kontrolü'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                  const Divider(height: 32),
                   // Geliştirici Bilgileri
                   const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -334,6 +355,88 @@ class SettingsScreen extends StatelessWidget {
     } catch (e) {
       // Email açma hatası - sessizce işlenir
     }
+  }
+
+  Future<void> _checkForUpdates() async {
+    // Loading göster
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => const Center(
+            child: Card(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Güncelleme kontrol ediliyor...'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+    );
+
+    try {
+      final versionInfo = await UpdateService.checkForUpdate();
+
+      if (!mounted) return;
+
+      // Loading kapat
+      Navigator.of(context).pop();
+
+      if (versionInfo == null) {
+        // Güncelleme kontrolü başarısız
+        _showMessage(
+          'Güncelleme kontrolü yapılamadı. İnternet bağlantınızı kontrol edin.',
+          isError: true,
+        );
+        return;
+      }
+
+      final currentVersion = await UpdateService.getCurrentVersion();
+      final hasUpdate = VersionInfo.isNewerVersion(
+        currentVersion,
+        versionInfo.latestVersion,
+      );
+
+      if (hasUpdate) {
+        // Güncelleme var - dialog göster
+        if (mounted) {
+          await showDialog(
+            context: context,
+            barrierDismissible: !versionInfo.forceUpdate,
+            builder:
+                (context) => UpdateDialog(
+                  versionInfo: versionInfo,
+                  forceUpdate: versionInfo.forceUpdate,
+                ),
+          );
+        }
+      } else {
+        // Güncel
+        _showMessage('Uygulamanız güncel! (v$currentVersion)');
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop(); // Loading kapat
+        _showMessage('Bir hata oluştu: $e', isError: true);
+      }
+    }
+  }
+
+  void _showMessage(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   void _showClearHistoryDialog(
