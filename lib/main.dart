@@ -35,39 +35,52 @@ class MyApp extends StatelessWidget {
           create: (_) => SettingsProvider()..loadSettings(),
         ),
       ],
-      child: MaterialApp(
-        title: 'Mucit Akademi',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.blue,
-            brightness: Brightness.light,
-          ),
-          useMaterial3: true,
-          appBarTheme: const AppBarTheme(centerTitle: true, elevation: 2),
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-              elevation: 4,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
-          ),
-          cardTheme: CardTheme(
+      child: Consumer<SettingsProvider>(
+        builder: (context, settings, _) {
+          final sharedCardTheme = CardTheme(
             elevation: 2,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
-          ),
-        ),
-        darkTheme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.blue,
-            brightness: Brightness.dark,
-          ),
-          useMaterial3: true,
-          appBarTheme: const AppBarTheme(centerTitle: true, elevation: 2),
-        ),
-        themeMode: ThemeMode.system,
-        home: const SplashScreen(),
+          );
+          final sharedButtonTheme = ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              elevation: 4,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+          );
+          const sharedAppBarTheme = AppBarTheme(
+            centerTitle: true,
+            elevation: 2,
+          );
+
+          return MaterialApp(
+            title: 'Mucit Akademi',
+            debugShowCheckedModeBanner: false,
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: Colors.blue,
+                brightness: Brightness.light,
+              ),
+              useMaterial3: true,
+              appBarTheme: sharedAppBarTheme,
+              elevatedButtonTheme: sharedButtonTheme,
+              cardTheme: sharedCardTheme,
+            ),
+            darkTheme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: Colors.blue,
+                brightness: Brightness.dark,
+              ),
+              useMaterial3: true,
+              appBarTheme: sharedAppBarTheme,
+              elevatedButtonTheme: sharedButtonTheme,
+              cardTheme: sharedCardTheme,
+            ),
+            themeMode: settings.themeMode,
+            home: const SplashScreen(),
+          );
+        },
       ),
     );
   }

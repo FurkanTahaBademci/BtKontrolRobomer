@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Uygulama ayarlarını yöneten Provider
@@ -10,6 +10,19 @@ class SettingsProvider with ChangeNotifier {
   static const String _keyButtonSpacing = 'button_spacing';
   static const String _keyButtonRadius = 'button_radius';
   static const String _keyScreenOrientation = 'screen_orientation';
+  static const String _keyThemeMode = 'theme_mode';
+  static const String _keyButtonLayout = 'button_layout';
+
+  // Varsayılan buton pozisyonları (normalize: 0.0-1.0 ekran oranı)
+  // [forward, backward, left, right, stop, speed]
+  static const List<Offset> _defaultButtonPositions = [
+    Offset(0.5, 0.15), // ileri
+    Offset(0.5, 0.75), // geri
+    Offset(0.15, 0.45), // sol
+    Offset(0.85, 0.45), // sağ
+    Offset(0.5, 0.88), // dur
+    Offset(0.5, 0.45), // hız
+  ];
 
   int _defaultSpeed = 128; // 0-255, varsayılan orta hız
   bool _vibrationEnabled = false; // Varsayılan kapalı
@@ -23,6 +36,8 @@ class SettingsProvider with ChangeNotifier {
 
   // Ekran yönlendirme ayarı
   ScreenOrientation _screenOrientation = ScreenOrientation.landscape;
+  ThemeMode _themeMode = ThemeMode.system;
+  List<Offset> _buttonPositions = List.of(_defaultButtonPositions);
 
   int get defaultSpeed => _defaultSpeed;
   bool get vibrationEnabled => _vibrationEnabled;
@@ -32,6 +47,10 @@ class SettingsProvider with ChangeNotifier {
   double get buttonSpacing => _buttonSpacing;
   double get buttonRadius => _buttonRadius;
   ScreenOrientation get screenOrientation => _screenOrientation;
+  ThemeMode get themeMode => _themeMode;
+  List<Offset> get buttonPositions => List.unmodifiable(_buttonPositions);
+  static List<Offset> get defaultButtonPositions =>
+      List.of(_defaultButtonPositions);
 
   /// Ayarları yükle
   Future<void> loadSettings() async {
@@ -56,6 +75,27 @@ class SettingsProvider with ChangeNotifier {
         (mode) => mode.name == modeName,
         orElse: () => CommandMode.simple,
       );
+
+      final themeModeName = prefs.getString(_keyThemeMode) ?? 'system';
+      _themeMode = ThemeMode.values.firstWhere(
+        (m) => m.name == themeModeName,
+        orElse: () => ThemeMode.system,
+      );
+
+      final layoutRaw = prefs.getString(_keyButtonLayout);
+      if (layoutRaw != null) {
+        final parts = layoutRaw.split(';');
+        if (parts.length == _defaultButtonPositions.length) {
+          _buttonPositions =
+              parts.map((p) {
+                final xy = p.split(',');
+                return Offset(
+                  double.tryParse(xy[0]) ?? 0.5,
+                  double.tryParse(xy[1]) ?? 0.5,
+                );
+              }).toList();
+        }
+      }
 
       notifyListeners();
     } catch (e) {
@@ -144,6 +184,28 @@ class SettingsProvider with ChangeNotifier {
     } catch (e) {}
   }
 
+  /// Buton pozisyonlarını kaydet
+  Future<void> setButtonPositions(List<Offset> positions) async {
+    if (positions.length != _defaultButtonPositions.length) return;
+    _buttonPositions = List.of(positions);
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = positions.map((o) => '${o.dx},${o.dy}').join(';');
+      await prefs.setString(_keyButtonLayout, raw);
+    } catch (e) {}
+  }
+
+  /// Tema modunu ayarla
+  Future<void> setThemeMode(ThemeMode mode) async {
+    _themeMode = mode;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyThemeMode, mode.name);
+    } catch (e) {}
+  }
+
   /// Tüm ayarları sıfırla
   Future<void> resetToDefaults() async {
     _defaultSpeed = 128;
@@ -154,6 +216,8 @@ class SettingsProvider with ChangeNotifier {
     _buttonSpacing = 8.0;
     _buttonRadius = 14.0;
     _screenOrientation = ScreenOrientation.landscape;
+    _themeMode = ThemeMode.system;
+    _buttonPositions = List.of(_defaultButtonPositions);
     notifyListeners();
 
     try {
@@ -165,6 +229,8 @@ class SettingsProvider with ChangeNotifier {
       await prefs.remove(_keyButtonSpacing);
       await prefs.remove(_keyButtonRadius);
       await prefs.remove(_keyScreenOrientation);
+      await prefs.remove(_keyThemeMode);
+      await prefs.remove(_keyButtonLayout);
     } catch (e) {
       // Silme hatası sessizce işlenir
     }

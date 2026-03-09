@@ -93,7 +93,7 @@ class _DeviceScanScreenState extends State<DeviceScanScreen> {
     return Container(
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[200],
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -137,12 +137,21 @@ class _DeviceScanScreenState extends State<DeviceScanScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: isSelected ? Colors.white : Colors.grey[700]),
+            Icon(
+              icon,
+              color:
+                  isSelected
+                      ? Colors.white
+                      : Theme.of(context).colorScheme.onSurface,
+            ),
             const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? Colors.white : Colors.grey[700],
+                color:
+                    isSelected
+                        ? Colors.white
+                        : Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -185,18 +194,22 @@ class _DeviceScanScreenState extends State<DeviceScanScreen> {
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.red.shade50,
+        color: Theme.of(context).colorScheme.errorContainer,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.red.shade200),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.error.withOpacity(0.4),
+        ),
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline, color: Colors.red.shade700),
+          Icon(Icons.error_outline, color: Theme.of(context).colorScheme.error),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               provider.errorMessage!,
-              style: TextStyle(color: Colors.red.shade900),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onErrorContainer,
+              ),
             ),
           ),
           IconButton(
@@ -215,36 +228,51 @@ class _DeviceScanScreenState extends State<DeviceScanScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: Row(
             children: [
-              Icon(Icons.history, size: 20, color: Colors.grey),
-              SizedBox(width: 8),
+              Icon(
+                Icons.history,
+                size: 20,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+              ),
+              const SizedBox(width: 8),
               Text(
                 'Son Bağlantılar',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.grey,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withOpacity(0.6),
                 ),
               ),
             ],
           ),
         ),
         SizedBox(
-          height: 100,
+          height: 120,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             itemCount: historyProvider.history.length,
             itemBuilder: (context, index) {
               final device = historyProvider.history[index];
+              // Mevcut tarama sonuçlarında bu cihaz var mı?
+              final bool? isActive =
+                  bluetoothProvider.devices.isEmpty
+                      ? null
+                      : bluetoothProvider.devices.any(
+                        (d) => d.address == device.address,
+                      );
               return SizedBox(
-                width: 200,
+                width: 260,
                 child: DeviceListTile(
                   device: device,
                   isFromHistory: true,
+                  isActive: isActive,
+                  onDelete: () => historyProvider.removeDevice(device),
                   onTap:
                       () => _connectToDevice(
                         device,
@@ -280,16 +308,25 @@ class _DeviceScanScreenState extends State<DeviceScanScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.bluetooth_disabled, size: 64, color: Colors.grey[400]),
+            Icon(
+              Icons.bluetooth_disabled,
+              size: 64,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+            ),
             const SizedBox(height: 16),
             Text(
               'Cihaz bulunamadı',
-              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+              style: TextStyle(
+                fontSize: 18,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               'Tarama butonuna basarak cihaz arayın',
-              style: TextStyle(color: Colors.grey[500]),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+              ),
             ),
           ],
         ),
@@ -349,7 +386,8 @@ class _DeviceScanScreenState extends State<DeviceScanScreen> {
           MaterialPageRoute(builder: (context) => const RobotControlScreen()),
         );
       } else {
-        // Hata mesajı göster
+        // Sadece altta snackbar göster, üstteki hata kartını temizle
+        bluetoothProvider.clearError();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('${device.name} cihazına bağlanılamadı'),
@@ -407,11 +445,7 @@ class _DeviceScanScreenState extends State<DeviceScanScreen> {
           const SizedBox(width: 8),
           const Text(
             'Mucit Akademi',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.blue,
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ],
       ),

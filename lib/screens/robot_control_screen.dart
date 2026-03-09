@@ -16,8 +16,6 @@ class RobotControlScreen extends StatefulWidget {
 }
 
 class _RobotControlScreenState extends State<RobotControlScreen> {
-  bool _speedChangeInProgress = false;
-
   @override
   void initState() {
     super.initState();
@@ -111,95 +109,13 @@ class _RobotControlScreenState extends State<RobotControlScreen> {
           ],
         ),
         body: SafeArea(
-          child: OrientationBuilder(
-            builder: (context, orientation) {
-              if (orientation == Orientation.portrait) {
-                // Dikey mod - Column layout
-                return SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      // Bağlantı durumu bilgisi
-                      if (!bluetoothProvider.isConnected)
-                        _buildConnectionLostBanner(bluetoothProvider),
-
-                      const SizedBox(height: 16),
-
-                      // Yön kontrolleri
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: _buildDirectionControls(bluetoothProvider),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Hız kontrolü
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: _buildSpeedControl(bluetoothProvider),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Acil dur butonu
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: _buildStopButton(bluetoothProvider),
-                      ),
-
-                      const SizedBox(height: 16),
-                    ],
-                  ),
-                );
-              } else {
-                // Yatay mod - Row layout
-                return Row(
-                  children: [
-                    // Sol taraf - Hız kontrolü ve Acil Dur
-                    Expanded(
-                      flex: 3,
-                      child: SingleChildScrollView(
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minHeight:
-                                MediaQuery.of(context).size.height -
-                                MediaQuery.of(context).padding.top -
-                                MediaQuery.of(context).padding.bottom -
-                                56,
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              // Bağlantı durumu bilgisi
-                              if (!bluetoothProvider.isConnected)
-                                _buildConnectionLostBanner(bluetoothProvider),
-
-                              const SizedBox(height: 8),
-
-                              // Hız kontrolü
-                              _buildSpeedControl(bluetoothProvider),
-
-                              const SizedBox(height: 8),
-
-                              // Acil dur butonu
-                              _buildStopButton(bluetoothProvider),
-
-                              const SizedBox(height: 8),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // Sağ taraf - Yön kontrolleri
-                    Expanded(
-                      flex: 4,
-                      child: Center(
-                        child: _buildDirectionControls(bluetoothProvider),
-                      ),
-                    ),
-                  ],
-                );
-              }
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final canvasSize = Size(
+                constraints.maxWidth,
+                constraints.maxHeight,
+              );
+              return _buildFreeLayout(bluetoothProvider, canvasSize);
             },
           ),
         ),
@@ -216,7 +132,10 @@ class _RobotControlScreenState extends State<RobotControlScreen> {
       padding: const EdgeInsets.all(8),
       margin: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: isDevMode ? Colors.orange.shade100 : Colors.red.shade100,
+        color:
+            isDevMode
+                ? Theme.of(context).colorScheme.tertiaryContainer
+                : Theme.of(context).colorScheme.errorContainer,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -224,7 +143,10 @@ class _RobotControlScreenState extends State<RobotControlScreen> {
         children: [
           Icon(
             isDevMode ? Icons.developer_mode : Icons.warning_amber,
-            color: isDevMode ? Colors.orange.shade700 : Colors.red.shade700,
+            color:
+                isDevMode
+                    ? Theme.of(context).colorScheme.onTertiaryContainer
+                    : Theme.of(context).colorScheme.error,
             size: 16,
           ),
           const SizedBox(width: 6),
@@ -234,7 +156,10 @@ class _RobotControlScreenState extends State<RobotControlScreen> {
                   ? 'Geliştirici Modu - Cihaz bağlı değil!'
                   : 'Bağlantı kesildi!',
               style: TextStyle(
-                color: isDevMode ? Colors.orange.shade900 : Colors.red.shade900,
+                color:
+                    isDevMode
+                        ? Theme.of(context).colorScheme.onTertiaryContainer
+                        : Theme.of(context).colorScheme.onErrorContainer,
                 fontWeight: FontWeight.bold,
                 fontSize: 11,
               ),
@@ -254,199 +179,132 @@ class _RobotControlScreenState extends State<RobotControlScreen> {
     );
   }
 
-  Widget _buildSpeedControl(BluetoothProvider provider) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 10),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.speed, color: Colors.blue, size: 16),
-                  SizedBox(width: 4),
-                  Text(
-                    'Motor',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade100,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  '${provider.currentSpeed}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue.shade900,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Text(
-                '0',
-                style: TextStyle(color: Colors.grey, fontSize: 11),
-              ),
-              Expanded(
-                child: Slider(
-                  value: provider.currentSpeed.toDouble(),
-                  min: 0,
-                  max: 255,
-                  divisions: 51, // 5'er 5'er artacak şekilde
-                  label: provider.currentSpeed.toString(),
-                  onChanged:
-                      provider.isConnected
-                          ? (value) {
-                            provider.updateSpeed(value.toInt());
-                          }
-                          : null,
-                  onChangeEnd: (value) async {
-                    if (!_speedChangeInProgress && provider.isConnected) {
-                      _speedChangeInProgress = true;
-                      await provider.sendSpeedCommand(value.toInt());
-                      _speedChangeInProgress = false;
-                    }
-                  },
-                ),
-              ),
-              const Text(
-                '255',
-                style: TextStyle(color: Colors.grey, fontSize: 11),
-              ),
-            ],
-          ),
-          Text(
-            '${((provider.currentSpeed / 255) * 100).toStringAsFixed(0)}%',
-            style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-          ),
-        ],
-      ),
+  /// Serbest konumlandırmalı (Stack) ana düzen
+  Widget _buildFreeLayout(BluetoothProvider provider, Size canvasSize) {
+    final settings = context.watch<SettingsProvider>();
+    final positions = settings.buttonPositions;
+    final btnSize = settings.buttonSize;
+    final btnRadius = settings.buttonRadius;
+    final vibration = settings.vibrationEnabled;
+
+    Offset toPx(int idx) => Offset(
+      positions[idx].dx * canvasSize.width,
+      positions[idx].dy * canvasSize.height,
     );
-  }
 
-  Widget _buildDirectionControls(BluetoothProvider provider) {
-    final settingsProvider = context.watch<SettingsProvider>();
-    final vibrationEnabled = settingsProvider.vibrationEnabled;
-    final btnSize = settingsProvider.buttonSize;
-    final btnSpacing = settingsProvider.buttonSpacing;
-    final btnRadius = settingsProvider.buttonRadius;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
+    return Stack(
       children: [
-        // İleri
-        DirectionButton(
-          command: RobotCommand.forward,
-          icon: Icons.arrow_upward,
-          label: 'İleri',
-          onPressed: (cmd) => provider.sendRobotCommand(cmd),
-          onReleased: () => provider.sendRobotCommand(RobotCommand.stop),
-          enableVibration: vibrationEnabled,
-          size: btnSize,
-          borderRadius: btnRadius,
+        // 0 - İleri
+        _positionedButton(
+          left: toPx(0).dx - btnSize / 2,
+          top: toPx(0).dy - btnSize / 2,
+          child: _directionBtn(
+            provider,
+            vibration,
+            RobotCommand.forward,
+            Icons.arrow_upward,
+            'İleri',
+            btnSize,
+            btnRadius,
+          ),
         ),
-        SizedBox(height: btnSpacing),
-        // Sol, Dur, Sağ
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            DirectionButton(
-              command: RobotCommand.left,
-              icon: Icons.arrow_back,
-              label: 'Sol',
-              onPressed: (cmd) => provider.sendRobotCommand(cmd),
-              onReleased: () => provider.sendRobotCommand(RobotCommand.stop),
-              enableVibration: vibrationEnabled,
-              size: btnSize,
-              borderRadius: btnRadius,
-            ),
-            SizedBox(width: btnSpacing + 12),
-            DirectionButton(
-              command: RobotCommand.right,
-              icon: Icons.arrow_forward,
-              label: 'Sağ',
-              onPressed: (cmd) => provider.sendRobotCommand(cmd),
-              onReleased: () => provider.sendRobotCommand(RobotCommand.stop),
-              enableVibration: vibrationEnabled,
-              size: btnSize,
-              borderRadius: btnRadius,
-            ),
-          ],
+        // 1 - Geri
+        _positionedButton(
+          left: toPx(1).dx - btnSize / 2,
+          top: toPx(1).dy - btnSize / 2,
+          child: _directionBtn(
+            provider,
+            vibration,
+            RobotCommand.backward,
+            Icons.arrow_downward,
+            'Geri',
+            btnSize,
+            btnRadius,
+          ),
         ),
-        SizedBox(height: btnSpacing),
-        // Geri
-        DirectionButton(
-          command: RobotCommand.backward,
-          icon: Icons.arrow_downward,
-          label: 'Geri',
-          onPressed: (cmd) => provider.sendRobotCommand(cmd),
-          onReleased: () => provider.sendRobotCommand(RobotCommand.stop),
-          enableVibration: vibrationEnabled,
-          size: btnSize,
-          borderRadius: btnRadius,
+        // 2 - Sol
+        _positionedButton(
+          left: toPx(2).dx - btnSize / 2,
+          top: toPx(2).dy - btnSize / 2,
+          child: _directionBtn(
+            provider,
+            vibration,
+            RobotCommand.left,
+            Icons.arrow_back,
+            'Sol',
+            btnSize,
+            btnRadius,
+          ),
         ),
+        // 3 - Sağ
+        _positionedButton(
+          left: toPx(3).dx - btnSize / 2,
+          top: toPx(3).dy - btnSize / 2,
+          child: _directionBtn(
+            provider,
+            vibration,
+            RobotCommand.right,
+            Icons.arrow_forward,
+            'Sağ',
+            btnSize,
+            btnRadius,
+          ),
+        ),
+        // 4 - DUR
+        _positionedButton(
+          left: toPx(4).dx - btnSize / 2,
+          top: toPx(4).dy - btnSize / 2,
+          child: _directionBtn(
+            provider,
+            vibration,
+            RobotCommand.stop,
+            Icons.stop_circle,
+            'DUR',
+            btnSize,
+            btnRadius,
+            color: Colors.red,
+          ),
+        ),
+        // Bağlantı koptu banner (en üstte)
+        if (!provider.isConnected)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: _buildConnectionLostBanner(provider),
+          ),
       ],
     );
   }
 
-  Widget _buildStopButton(BluetoothProvider provider) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: SizedBox(
-        width: double.infinity,
-        height: 45,
-        child: ElevatedButton(
-          onPressed:
-              provider.isConnected
-                  ? () => provider.sendRobotCommand(RobotCommand.stop)
-                  : null,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.red,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            elevation: 8,
-          ),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.stop_circle, size: 20),
-              SizedBox(width: 4),
-              Text(
-                'DUR',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+  Widget _positionedButton({
+    required double left,
+    required double top,
+    required Widget child,
+  }) {
+    return Positioned(left: left, top: top, child: child);
+  }
+
+  Widget _directionBtn(
+    BluetoothProvider provider,
+    bool vibration,
+    RobotCommand cmd,
+    IconData icon,
+    String label,
+    double size,
+    double radius, {
+    Color? color,
+  }) {
+    return DirectionButton(
+      command: cmd,
+      icon: icon,
+      label: label,
+      onPressed: (c) => provider.sendRobotCommand(c),
+      onReleased: () => provider.sendRobotCommand(RobotCommand.stop),
+      enableVibration: vibration,
+      size: size,
+      borderRadius: radius,
+      color: color,
     );
   }
 
