@@ -55,7 +55,7 @@ class MyApp extends StatelessWidget {
           );
 
           return MaterialApp(
-            title: 'Mucit Akademi',
+            title: 'Mucit Akademisi',
             debugShowCheckedModeBanner: false,
             theme: ThemeData(
               colorScheme: ColorScheme.fromSeed(

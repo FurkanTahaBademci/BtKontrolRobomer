@@ -444,7 +444,7 @@ class _DeviceScanScreenState extends State<DeviceScanScreen> {
           ),
           const SizedBox(width: 8),
           const Text(
-            'Mucit Akademi',
+            'Mucit Akademisi',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ],

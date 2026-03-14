@@ -16,6 +16,11 @@ class ClassicBluetoothController implements BluetoothController {
 
   BluetoothConnection? _connection;
   StreamSubscription<Uint8List>? _dataSubscription;
+  bool _isDisconnecting = false; // Reentrancy guard
+
+  // "Latest command wins" write guard
+  bool _isSending = false;
+  RobotCommand? _nextCommand; // Gönderim devam ederken gelen en son komut
 
   final _devicesController =
       StreamController<List<BluetoothDeviceModel>>.broadcast();
@@ -98,6 +103,10 @@ class ClassicBluetoothController implements BluetoothController {
   Future<void> stopScan() async {
     await _discoverySubscription?.cancel();
     _discoverySubscription = null;
+    // Native Android discovery'yi de durdur (sadece subscription iptal etmek yetmez)
+    try {
+      await _bluetooth.cancelDiscovery();
+    } catch (_) {}
   }
 
   @override
@@ -117,13 +126,24 @@ class ClassicBluetoothController implements BluetoothController {
         _connectedDevice = device;
         _updateConnectionState(app_state.ConnectionState.connected);
 
-        // Gelen verileri dinle (opsiyonel - robot veri gönderiyorsa)
+        // Gelen verileri dinle
         _dataSubscription = _connection!.input!.listen(
           (Uint8List data) {
             // Arduino'dan gelen veri burada işlenebilir
           },
           onDone: () {
-            disconnect();
+            // Bağlantı uzak taraftan kesildi—soketi kapamaya çalışma (zaten kapandı)
+            if (!_isDisconnecting) {
+              _isDisconnecting = true;
+              _dataSubscription?.cancel();
+              _dataSubscription = null;
+              _connection = null;
+              _isSending = false;
+              _nextCommand = null;
+              _connectedDevice = null;
+              _updateConnectionState(app_state.ConnectionState.disconnected);
+              _isDisconnecting = false;
+            }
           },
           onError: (error) {
             _updateConnectionState(app_state.ConnectionState.error);
@@ -143,30 +163,64 @@ class ClassicBluetoothController implements BluetoothController {
 
   @override
   Future<void> disconnect() async {
+    if (_isDisconnecting) return; // Reentrancy guard
+    _isDisconnecting = true;
+
+    _isSending = false;
+    _nextCommand = null;
+
     await _dataSubscription?.cancel();
     _dataSubscription = null;
 
-    if (_connection != null) {
-      await _connection?.close();
-      _connection = null;
+    final conn = _connection;
+    _connection = null;
+    if (conn != null) {
+      try {
+        await conn.close().timeout(const Duration(seconds: 2));
+      } catch (_) {
+        // Zaten kapanmış veya timeout — sessizce geç
+      }
     }
 
     _connectedDevice = null;
+    _isDisconnecting = false;
     _updateConnectionState(app_state.ConnectionState.disconnected);
   }
 
   @override
   Future<bool> sendCommand(RobotCommand command) async {
-    if (_connection == null || !_connection!.isConnected) {
-      return false;
+    if (_connection == null || !_connection!.isConnected) return false;
+
+    if (_isSending) {
+      // Gönderim devam ediyor: en son komutu kaydet (eskiyi at)
+      // STOP her zaman override eder
+      if (command == RobotCommand.stop ||
+          _nextCommand == null ||
+          _nextCommand != RobotCommand.stop) {
+        _nextCommand = command;
+      }
+      return true;
     }
 
+    _isSending = true;
     try {
       _connection!.output.add(utf8.encode(command.value));
       await _connection!.output.allSent;
+
+      // Gönderim tamamlandi: bekleyen komut var mi?
+      while (_nextCommand != null) {
+        final next = _nextCommand!;
+        _nextCommand = null;
+        if (_connection == null || !_connection!.isConnected) break;
+        _connection!.output.add(utf8.encode(next.value));
+        await _connection!.output.allSent;
+      }
       return true;
     } catch (e) {
       return false;
+    } finally {
+      _isSending = false;
+      _nextCommand = null;
     }
   }
 

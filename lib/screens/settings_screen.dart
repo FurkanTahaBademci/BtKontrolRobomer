@@ -436,7 +436,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'Mucit Akademi',
+                    'Mucit Akademisi',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
@@ -667,7 +667,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final Uri emailUri = Uri(
       scheme: 'mailto',
       path: 'tahafurkanbademci@gmail.com',
-      query: 'subject=Mucit Akademi Robot Kontrol - Destek',
+      query: 'subject=Mucit Akademisi Robot Kontrol - Destek',
     );
 
     try {

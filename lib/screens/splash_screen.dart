@@ -153,7 +153,7 @@ class _SplashScreenState extends State<SplashScreen>
                           const SizedBox(height: 30),
                           // Uygulama adı
                           const Text(
-                            'Mucit Akademi',
+                            'Mucit Akademisi',
                             style: TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.bold,

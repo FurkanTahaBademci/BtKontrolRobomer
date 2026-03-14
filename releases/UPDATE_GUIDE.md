@@ -1,4 +1,4 @@
-# 📱 Mucit Akademi - Uygulama Güncelleme Rehberi
+# 📱 Mucit Akademisi - Uygulama Güncelleme Rehberi
 
 > **Uygulama güncelleme sırasında karşılaşabileceğiniz sorunlar ve çözümleri bu dokümanda bulabilirsiniz.**
 
@@ -73,7 +73,7 @@ Uygulama açılırken bu dialog ekranını göreceksiniz:
 ```
 Bilinmeyen kaynaklardan yükleme izni gerekli.
 
-Ayarlar > Uygulamalar > Mucit Akademi > 
+Ayarlar > Uygulamalar > Mucit Akademisi > 
 Bilinmeyen uygulamaları yükle seçeneğini açın.
 ```
 
@@ -81,7 +81,7 @@ Bilinmeyen uygulamaları yükle seçeneğini açın.
 
 1. Telefon ayarlarını açın
 2. **Uygulamalar** → **Uygulama yönetimi** (veya **Uygulamalar**)
-3. **Mucit Akademi** uygulamasını bulun
+3. **Mucit Akademisi** uygulamasını bulun
 4. **Gelişmiş seçenekler** veya **İzinler**
 5. **Bilinmeyen uygulamaları yükle** → açın (✅)
 6. Geri dönüp **Şimdi Güncelle** butonuna tekrar basın
@@ -95,7 +95,7 @@ Bilinmeyen uygulamaları yükle seçeneğini açın.
 │  📦 Paket Yükleyici                     │
 ├─────────────────────────────────────────┤
 │                                         │
-│  Mucit Akademi                          │
+│  Mucit Akademisi                          │
 │  Sürüm: 1.0.2                           │
 │                                         │
 │  Bu uygulama aşağıdaki işlemleri       │
@@ -149,7 +149,7 @@ Bilinmeyen uygulamaları yükle seçeneğini açın.
 Android 10+:
 ├─ Ayarlar (Settings)
 ├─ Uygulamalar (Apps)
-├─ Mucit Akademi seçin
+├─ Mucit Akademisi seçin
 ├─ İleri → Gelişmiş Seçenekler (Advanced)
 ├─ Bilinmeyen uygulamaları yükle
 └─ Aç (ON)
@@ -184,7 +184,7 @@ Android 8-9:
 1. **Tekrar deneyin** (basit ama genelde çalışır)
 2. **Cihazı yeniden başlatın**
 3. **Uygulamayı sil sonnra kurun**:
-   - Ayarlar → Uygulamalar → Mucit Akademi → Sil
+   - Ayarlar → Uygulamalar → Mucit Akademisi → Sil
    - [GitHub'tan en son APK indir](https://github.com/FurkanTahaBademci/BtKontrolRobomer/releases) ve manuel kur
 4. Sorun devam ederse → **Geliştiriciyle iletişime geçin**
 
@@ -234,7 +234,7 @@ Otomatik yükleme başarısız olursa:
 
 Otomatik kontrol istemiyor veya kontrol başarısız olduysa:
 
-1. **Mucit Akademi uygulamasını açın**
+1. **Mucit Akademisi uygulamasını açın**
 2. **Ana ekrana gitmek yerine** sol üstte ← basın
 3. **Ayarlar (⚙️)** butonuna basın
 4. **Güncelleme Kontrolü** seçeneğini tap edin
@@ -282,5 +282,5 @@ Farklar:
 ---
 
 **Son Güncelleme: 09 Mart 2026**  
-**Yazar: Mucit Akademi Geliştirme Ekibi**  
+**Yazar: Mucit Akademisi Geliştirme Ekibi**  
 **Versiyon: 1.0**

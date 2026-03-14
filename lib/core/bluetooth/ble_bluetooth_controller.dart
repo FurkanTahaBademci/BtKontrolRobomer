@@ -12,9 +12,14 @@ import 'package:bt_kontrol_robomer/core/constants/bluetooth_constants.dart';
 class BleBluetoothController implements BluetoothController {
   BluetoothDevice? _connectedBleDevice;
   BluetoothCharacteristic? _writeCharacteristic;
-  bool _useWriteWithoutResponse = false; // Bağlantıda belirlenir
-  DateTime? _lastCommandTime; // Son komut zamanı (throttling için)
-  static const int _minCommandIntervalMs = 10; // Minimum komut aralığı (ms)
+  bool _useWriteWithoutResponse = false;
+  bool _isBleConnected = false;
+
+  // "Latest command wins" write guard
+  // flutter_blue_plus write()'ları kendi iç kuyruğuna aldığından,
+  // in-flight iken gelen komutları kuyruğa değil _nextCommand'e yaz
+  bool _isSending = false;
+  RobotCommand? _nextCommand; // Gönderim devam ederken gelen en son komut
 
   final _devicesController =
       StreamController<List<BluetoothDeviceModel>>.broadcast();
@@ -142,6 +147,7 @@ class BleBluetoothController implements BluetoothController {
       _connectionSubscription = _connectedBleDevice!.connectionState.listen((
         state,
       ) {
+        _isBleConnected = (state == BluetoothConnectionState.connected);
         if (state == BluetoothConnectionState.disconnected &&
             _currentState == app_state.ConnectionState.connected) {
           _updateConnectionState(app_state.ConnectionState.disconnected);
@@ -154,19 +160,8 @@ class BleBluetoothController implements BluetoothController {
         autoConnect: false,
       );
 
-      // Bonding için bekle
-      await Future.delayed(const Duration(milliseconds: 1000));
-
-      // Bonding tamamlanana kadar bekle
-      bool bondingCompleted = false;
-      int waitCount = 0;
-      while (!bondingCompleted && waitCount < 10) {
-        await Future.delayed(const Duration(milliseconds: 500));
-        waitCount++;
-        if (waitCount > 10) {
-          bondingCompleted = true;
-        }
-      }
+      // Bağlantı stabilitesi için kısa bekleme
+      await Future.delayed(const Duration(milliseconds: 400));
 
       // Connection priority HIGH yap (düşük latency)
       try {
@@ -214,11 +209,18 @@ class BleBluetoothController implements BluetoothController {
 
       if (_writeCharacteristic != null) {
         _connectedDevice = device;
+        _isBleConnected = true;
         _updateConnectionState(app_state.ConnectionState.connected);
 
-        // Optimum write modunu belirle
+        // writeWithoutResponse destekleniyorsa zorla kullan
+        // (ATT ack beklenmez → gecikme sıfıra düşer)
         _useWriteWithoutResponse =
             _writeCharacteristic!.properties.writeWithoutResponse;
+
+        // MTU negotiate et (Android default 23 byte, daha büyük yazmalar için)
+        try {
+          await _connectedBleDevice!.requestMtu(128);
+        } catch (_) {}
 
         return true;
       } else {
@@ -234,6 +236,9 @@ class BleBluetoothController implements BluetoothController {
 
   @override
   Future<void> disconnect() async {
+    _isBleConnected = false;
+    _isSending = false;
+    _nextCommand = null;
     await _connectionSubscription?.cancel();
     _connectionSubscription = null;
 
@@ -253,65 +258,52 @@ class BleBluetoothController implements BluetoothController {
 
   @override
   Future<bool> sendCommand(RobotCommand command) async {
-    if (_writeCharacteristic == null || _connectedBleDevice == null) {
-      return false;
-    }
+    if (_writeCharacteristic == null || !_isBleConnected) return false;
 
-    // Throttling: Çok hızlı arka arkaya komut göndermeyi engelle
-    final now = DateTime.now();
-    if (_lastCommandTime != null) {
-      final elapsed = now.difference(_lastCommandTime!).inMilliseconds;
-      if (elapsed < _minCommandIntervalMs) {
-        // Çok hızlı, kısa bekle
-        await Future.delayed(
-          Duration(milliseconds: _minCommandIntervalMs - elapsed),
-        );
+    if (_isSending) {
+      // Gönderim devam ediyor: en son komutu kaydet (eskiyi at)
+      // STOP her zaman override eder
+      if (command == RobotCommand.stop ||
+          _nextCommand == null ||
+          _nextCommand != RobotCommand.stop) {
+        _nextCommand = command;
       }
-    }
-    _lastCommandTime = DateTime.now();
-
-    // Bağlantı durumunu kontrol et
-    final connectionState = await _connectedBleDevice!.connectionState.first;
-    if (connectionState != BluetoothConnectionState.connected) {
-      return false;
+      return true;
     }
 
+    _isSending = true;
     try {
       await _writeCharacteristic!.write(
         utf8.encode(command.value),
         withoutResponse: _useWriteWithoutResponse,
       );
+
+      // Gönderim tamamlandı: bekleyen komut var mı?
+      while (_nextCommand != null && _isBleConnected) {
+        final next = _nextCommand!;
+        _nextCommand = null;
+        await _writeCharacteristic!.write(
+          utf8.encode(next.value),
+          withoutResponse: _useWriteWithoutResponse,
+        );
+      }
       return true;
     } catch (e) {
       return false;
+    } finally {
+      _isSending = false;
+      _nextCommand = null;
     }
   }
 
   @override
   Future<bool> sendSpeedCommand(SpeedCommand speedCommand) async {
-    if (_writeCharacteristic == null || _connectedBleDevice == null) {
-      return false;
-    }
+    if (_writeCharacteristic == null || !_isBleConnected) return false;
 
-    // Throttling: Çok hızlı arka arkaya komut göndermeyi engelle
-    final now = DateTime.now();
-    if (_lastCommandTime != null) {
-      final elapsed = now.difference(_lastCommandTime!).inMilliseconds;
-      if (elapsed < _minCommandIntervalMs) {
-        // Çok hızlı, kısa bekle
-        await Future.delayed(
-          Duration(milliseconds: _minCommandIntervalMs - elapsed),
-        );
-      }
-    }
-    _lastCommandTime = DateTime.now();
+    // Hız komutu: gönderim devam ediyorsa beklemeden dön (tek baytlık değil, önemli)
+    if (_isSending) return false;
 
-    // Bağlantı durumunu kontrol et
-    final connectionState = await _connectedBleDevice!.connectionState.first;
-    if (connectionState != BluetoothConnectionState.connected) {
-      return false;
-    }
-
+    _isSending = true;
     try {
       await _writeCharacteristic!.write(
         utf8.encode(speedCommand.toCommandString()),
@@ -320,6 +312,8 @@ class BleBluetoothController implements BluetoothController {
       return true;
     } catch (e) {
       return false;
+    } finally {
+      _isSending = false;
     }
   }
 

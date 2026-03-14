@@ -141,7 +141,7 @@ class UpdateService {
         if (!status.isGranted) {
           status = await Permission.requestInstallPackages.request();
           if (!status.isGranted) {
-            return 'Bilinmeyen kaynaklardan yükleme izni gerekli.\n\nAyarlar > Uygulamalar > Mucit Akademi > Bilinmeyen uygulamaları yükle seçeneğini açın.';
+            return 'Bilinmeyen kaynaklardan yükleme izni gerekli.\n\nAyarlar > Uygulamalar > Mucit Akademisi > Bilinmeyen uygulamaları yükle seçeneğini açın.';
           }
         }
       }
