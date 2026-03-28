@@ -14,7 +14,11 @@ enum RobotCommand {
   motorBBackward('I'), // Sol motor dur, sağ motor geri
   bothBackward('X'), // Her iki motor geri
   turnRightSoft('Y'), // Hafif sağa dön
-  turnLeftSoft('Z'); // Hafif sola dön
+  turnLeftSoft('Z'), // Hafif sola dön
+
+  // Aksesuar
+  hornOn('H'), // Korna aç
+  hornOff('N'); // Korna kapat
 
   final String value;
   const RobotCommand(this.value);

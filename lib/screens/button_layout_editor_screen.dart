@@ -10,7 +10,8 @@ enum ButtonSlot {
   left(2, 'Sol', Icons.arrow_back, Colors.blue),
   right(3, 'Sag', Icons.arrow_forward, Colors.blue),
   stop(4, 'DUR', Icons.stop_circle, Colors.red),
-  speed(5, 'Hiz', Icons.speed, Colors.blueGrey);
+  speed(5, 'Hiz', Icons.speed, Colors.blueGrey),
+  horn(6, 'Korna', Icons.volume_up, Colors.amber);
 
   const ButtonSlot(this.slotIndex, this.label, this.icon, this.color);
   final int slotIndex;
@@ -127,6 +128,9 @@ class _ButtonLayoutEditorScreenState extends State<ButtonLayoutEditorScreen> {
 
                 // DUR butonu (yon butonlariyla ayni boyut)
                 _draggableSquareBtn(ButtonSlot.stop, btnSize, btnRadius),
+
+                // Korna butonu
+                _draggableSquareBtn(ButtonSlot.horn, btnSize, btnRadius),
 
                 // Overlay: geri + sifirla + kaydet
                 Positioned(

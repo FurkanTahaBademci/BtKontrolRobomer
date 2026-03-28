@@ -53,10 +53,34 @@ class BleBluetoothController implements BluetoothController {
     try {
       _discoveredDevices.clear();
 
+      // Eski subscription'ı iptal et — yeni taramada çift işlem yaşanmasın
+      await _scanSubscription?.cancel();
+      _scanSubscription = null;
+
       // Önce BLE'nin açık olduğundan emin ol
       final isOn = await FlutterBluePlus.isOn;
       if (!isOn) {
         return;
+      }
+
+      // Halihazırda sistem seviyesinde bağlı BLE cihazları ekle
+      // (bunlar scan sonuçlarında çıkmaz)
+      final alreadyConnected = FlutterBluePlus.connectedDevices;
+      for (final device in alreadyConnected) {
+        final name =
+            device.platformName.isNotEmpty
+                ? device.platformName
+                : device.remoteId.toString();
+        _discoveredDevices.add(
+          BluetoothDeviceModel(
+            name: name,
+            address: device.remoteId.toString(),
+            type: BluetoothDeviceType.ble,
+          ),
+        );
+      }
+      if (_discoveredDevices.isNotEmpty) {
+        _devicesController.add(List.from(_discoveredDevices));
       }
 
       // Mevcut tarama varsa durdur
@@ -65,28 +89,53 @@ class BleBluetoothController implements BluetoothController {
       // Yeni tarama başlat
       await FlutterBluePlus.startScan(
         timeout: Duration(milliseconds: BluetoothConstants.scanTimeout),
+        androidScanMode: AndroidScanMode.lowLatency,
       );
 
       // Tarama sonuçlarını dinle
       _scanSubscription = FlutterBluePlus.scanResults.listen((results) {
+        bool changed = false;
         for (ScanResult result in results) {
-          final name = result.device.platformName;
-          if (name.isNotEmpty) {
-            final newDevice = BluetoothDeviceModel(
-              name: name,
-              address: result.device.remoteId.toString(),
-              type: BluetoothDeviceType.ble,
-              rssi: result.rssi,
-            );
+          // platformName boşsa advertisementData'daki advName'e bak
+          final name =
+              result.device.platformName.isNotEmpty
+                  ? result.device.platformName
+                  : result.advertisementData.advName;
 
-            // Duplicate kontrolü
-            if (!_discoveredDevices.any(
-              (d) => d.address == newDevice.address,
-            )) {
-              _discoveredDevices.add(newDevice);
-              _devicesController.add(List.from(_discoveredDevices));
+          if (name.isEmpty) continue;
+
+          final address = result.device.remoteId.toString();
+          final existingIndex = _discoveredDevices.indexWhere(
+            (d) => d.address == address,
+          );
+
+          if (existingIndex == -1) {
+            // Yeni cihaz — ekle
+            _discoveredDevices.add(
+              BluetoothDeviceModel(
+                name: name,
+                address: address,
+                type: BluetoothDeviceType.ble,
+                rssi: result.rssi,
+              ),
+            );
+            changed = true;
+          } else {
+            // Mevcut cihaz — RSSI güncellenmiş mi kontrol et
+            final existing = _discoveredDevices[existingIndex];
+            if (existing.rssi != result.rssi) {
+              _discoveredDevices[existingIndex] = BluetoothDeviceModel(
+                name: existing.name,
+                address: existing.address,
+                type: BluetoothDeviceType.ble,
+                rssi: result.rssi,
+              );
+              changed = true;
             }
           }
+        }
+        if (changed) {
+          _devicesController.add(List.from(_discoveredDevices));
         }
       });
     } catch (e) {

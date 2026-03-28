@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:bt_kontrol_robomer/providers/bluetooth_provider.dart';
-import 'package:bt_kontrol_robomer/providers/connection_history_provider.dart';
 import 'package:bt_kontrol_robomer/providers/settings_provider.dart';
 import 'package:bt_kontrol_robomer/core/bluetooth/models/bluetooth_device_model.dart';
 import 'package:bt_kontrol_robomer/widgets/device_list_tile.dart';
@@ -18,18 +17,8 @@ class DeviceScanScreen extends StatefulWidget {
 
 class _DeviceScanScreenState extends State<DeviceScanScreen> {
   @override
-  void initState() {
-    super.initState();
-    // Bağlantı geçmişini yükle
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ConnectionHistoryProvider>().loadHistory();
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     final bluetoothProvider = context.watch<BluetoothProvider>();
-    final historyProvider = context.watch<ConnectionHistoryProvider>();
     final settingsProvider = context.watch<SettingsProvider>();
 
     return Scaffold(
@@ -48,13 +37,6 @@ class _DeviceScanScreenState extends State<DeviceScanScreen> {
               );
             },
           ),
-          if (historyProvider.history.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: 'Geçmişi Temizle',
-              onPressed:
-                  () => _showClearHistoryDialog(context, historyProvider),
-            ),
         ],
       ),
       body: SafeArea(
@@ -75,11 +57,6 @@ class _DeviceScanScreenState extends State<DeviceScanScreen> {
             // Hata mesajı
             if (bluetoothProvider.errorMessage != null)
               _buildErrorCard(bluetoothProvider),
-
-            // Bağlantı geçmişi
-            if (historyProvider.history.isNotEmpty &&
-                !bluetoothProvider.isScanning)
-              _buildHistorySection(historyProvider, bluetoothProvider),
 
             // Bulunan cihazlar
             Expanded(child: _buildDeviceList(bluetoothProvider)),
@@ -221,74 +198,6 @@ class _DeviceScanScreenState extends State<DeviceScanScreen> {
     );
   }
 
-  Widget _buildHistorySection(
-    ConnectionHistoryProvider historyProvider,
-    BluetoothProvider bluetoothProvider,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Row(
-            children: [
-              Icon(
-                Icons.history,
-                size: 20,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Son Bağlantılar',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withOpacity(0.6),
-                ),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(
-          height: 120,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            itemCount: historyProvider.history.length,
-            itemBuilder: (context, index) {
-              final device = historyProvider.history[index];
-              // Mevcut tarama sonuçlarında bu cihaz var mı?
-              final bool? isActive =
-                  bluetoothProvider.devices.isEmpty
-                      ? null
-                      : bluetoothProvider.devices.any(
-                        (d) => d.address == device.address,
-                      );
-              return SizedBox(
-                width: 260,
-                child: DeviceListTile(
-                  device: device,
-                  isFromHistory: true,
-                  isActive: isActive,
-                  onDelete: () => historyProvider.removeDevice(device),
-                  onTap:
-                      () => _connectToDevice(
-                        device,
-                        bluetoothProvider,
-                        historyProvider,
-                      ),
-                ),
-              );
-            },
-          ),
-        ),
-        const Divider(height: 32),
-      ],
-    );
-  }
-
   Widget _buildDeviceList(BluetoothProvider provider) {
     if (provider.isScanning && provider.devices.isEmpty) {
       return const Center(
@@ -340,12 +249,7 @@ class _DeviceScanScreenState extends State<DeviceScanScreen> {
         final device = provider.devices[index];
         return DeviceListTile(
           device: device,
-          onTap:
-              () => _connectToDevice(
-                device,
-                provider,
-                context.read<ConnectionHistoryProvider>(),
-              ),
+          onTap: () => _connectToDevice(device, provider),
         );
       },
     );
@@ -354,7 +258,6 @@ class _DeviceScanScreenState extends State<DeviceScanScreen> {
   Future<void> _connectToDevice(
     BluetoothDeviceModel device,
     BluetoothProvider bluetoothProvider,
-    ConnectionHistoryProvider historyProvider,
   ) async {
     // Bağlantı dialog göster
     showDialog(
@@ -378,52 +281,78 @@ class _DeviceScanScreenState extends State<DeviceScanScreen> {
       Navigator.of(context).pop(); // Dialog kapat
 
       if (success) {
-        // Geçmişe ekle
-        await historyProvider.saveDevice(device);
-
         // Kontrol ekranına git
         Navigator.of(context).push(
           MaterialPageRoute(builder: (context) => const RobotControlScreen()),
         );
       } else {
-        // Sadece altta snackbar göster, üstteki hata kartını temizle
+        final errorMsg = bluetoothProvider.errorMessage;
         bluetoothProvider.clearError();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${device.name} cihazına bağlanılamadı'),
-            backgroundColor: Colors.red,
-          ),
+        _showConnectionErrorDialog(
+          context,
+          device,
+          bluetoothProvider,
+          errorMsg,
         );
       }
     }
   }
 
-  void _showClearHistoryDialog(
+  void _showConnectionErrorDialog(
     BuildContext context,
-    ConnectionHistoryProvider provider,
+    BluetoothDeviceModel device,
+    BluetoothProvider bluetoothProvider,
+    String? errorMsg,
   ) {
     showDialog(
       context: context,
       builder:
-          (context) => AlertDialog(
-            title: const Text('Geçmişi Temizle'),
-            content: const Text(
-              'Tüm bağlantı geçmişi silinecek. Emin misiniz?',
+          (ctx) => AlertDialog(
+            icon: const Icon(
+              Icons.bluetooth_disabled,
+              color: Colors.red,
+              size: 40,
+            ),
+            title: const Text('Bağlantı Başarısız'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                RichText(
+                  text: TextSpan(
+                    style: DefaultTextStyle.of(context).style,
+                    children: [
+                      const TextSpan(text: 'Cihaz: '),
+                      TextSpan(
+                        text: device.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  errorMsg ?? '${device.name} cihazına bağlanılamadı.',
+                  style: TextStyle(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withOpacity(0.8),
+                  ),
+                ),
+              ],
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('İptal'),
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Kapat'),
               ),
-              TextButton(
+              FilledButton.icon(
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Tekrar Dene'),
                 onPressed: () {
-                  provider.clearHistory();
-                  Navigator.pop(context);
+                  Navigator.of(ctx).pop();
+                  _connectToDevice(device, bluetoothProvider);
                 },
-                child: const Text(
-                  'Temizle',
-                  style: TextStyle(color: Colors.red),
-                ),
               ),
             ],
           ),

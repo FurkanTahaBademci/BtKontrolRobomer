@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:bt_kontrol_robomer/providers/settings_provider.dart';
-import 'package:bt_kontrol_robomer/providers/connection_history_provider.dart';
 import 'package:bt_kontrol_robomer/services/update_service.dart';
 import 'package:bt_kontrol_robomer/models/version_info.dart';
 import 'package:bt_kontrol_robomer/widgets/update_dialog.dart';
@@ -36,7 +35,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final settingsProvider = context.watch<SettingsProvider>();
-    final historyProvider = context.watch<ConnectionHistoryProvider>();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Ayarlar'), centerTitle: true),
@@ -390,23 +388,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 32),
 
-          // Bağlantı Geçmişi
-          _buildSectionTitle('Veri Yönetimi'),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.history),
-              title: const Text('Bağlantı Geçmişini Temizle'),
-              subtitle: Text(
-                '${historyProvider.history.length} cihaz kaydedildi',
-              ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                _showClearHistoryDialog(context, historyProvider);
-              },
-            ),
-          ),
-          const SizedBox(height: 16),
-
           // Ayarları Sıfırla
           Card(
             child: ListTile(
@@ -758,42 +739,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         backgroundColor: isError ? Colors.red : Colors.green,
         duration: const Duration(seconds: 3),
       ),
-    );
-  }
-
-  void _showClearHistoryDialog(
-    BuildContext context,
-    ConnectionHistoryProvider provider,
-  ) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Geçmişi Temizle'),
-            content: const Text(
-              'Tüm bağlantı geçmişi silinecek. Devam etmek istiyor musunuz?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('İptal'),
-              ),
-              TextButton(
-                onPressed: () async {
-                  await provider.clearHistory();
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Bağlantı geçmişi temizlendi'),
-                      ),
-                    );
-                  }
-                },
-                child: const Text('Temizle'),
-              ),
-            ],
-          ),
     );
   }
 

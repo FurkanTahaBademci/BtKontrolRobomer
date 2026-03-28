@@ -265,6 +265,13 @@ class _RobotControlScreenState extends State<RobotControlScreen> {
             color: Colors.red,
           ),
         ),
+        // 6 - Korna (pozisyon listesi yeterliyse)
+        if (positions.length > 6)
+          _positionedButton(
+            left: toPx(6).dx - btnSize / 2,
+            top: toPx(6).dy - btnSize / 2,
+            child: _hornBtn(provider, vibration, btnSize, btnRadius),
+          ),
         // Bağlantı koptu banner (en üstte)
         if (!provider.isConnected)
           Positioned(
@@ -305,6 +312,25 @@ class _RobotControlScreenState extends State<RobotControlScreen> {
       size: size,
       borderRadius: radius,
       color: color,
+    );
+  }
+
+  Widget _hornBtn(
+    BluetoothProvider provider,
+    bool vibration,
+    double size,
+    double radius,
+  ) {
+    return DirectionButton(
+      command: RobotCommand.hornOn,
+      icon: Icons.volume_up,
+      label: 'Korna',
+      onPressed: (c) => provider.sendRobotCommand(c),
+      onReleased: () => provider.sendRobotCommand(RobotCommand.hornOff),
+      enableVibration: vibration,
+      size: size,
+      borderRadius: radius,
+      color: Colors.amber.shade700,
     );
   }
 

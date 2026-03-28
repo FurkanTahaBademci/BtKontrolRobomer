@@ -6,6 +6,7 @@ import 'package:bt_kontrol_robomer/core/bluetooth/ble_bluetooth_controller.dart'
 import 'package:bt_kontrol_robomer/core/bluetooth/models/bluetooth_device_model.dart';
 import 'package:bt_kontrol_robomer/core/bluetooth/models/connection_state.dart';
 import 'package:bt_kontrol_robomer/core/bluetooth/models/robot_command.dart';
+import 'package:bt_kontrol_robomer/core/constants/bluetooth_constants.dart';
 import 'package:bt_kontrol_robomer/core/permissions/bluetooth_permission_handler.dart';
 
 /// Bluetooth işlemlerini yöneten Provider
@@ -130,11 +131,35 @@ class BluetoothProvider with ChangeNotifier {
         return;
       }
 
+      // BLE tarama için konum servisinin açık olması gerekli
+      if (_currentType == BluetoothDeviceType.ble) {
+        final locationEnabled =
+            await BluetoothPermissionHandler.isLocationServiceEnabled();
+        if (!locationEnabled) {
+          _errorMessage =
+              'BLE tarama için konum servisi açık olmalıdır. Lütfen konum servisini açın.';
+          notifyListeners();
+          return;
+        }
+      }
+
       _isScanning = true;
       _devices.clear();
       notifyListeners();
 
       await _controller!.startScan();
+
+      // Tarama timeout sonrası isScanning bayrağını sıfırla
+      // (controller timeout dolunca provider'a bildirim yapmaz)
+      Future.delayed(
+        Duration(milliseconds: BluetoothConstants.scanTimeout + 500),
+        () {
+          if (_isScanning) {
+            _isScanning = false;
+            notifyListeners();
+          }
+        },
+      );
     } catch (e) {
       _errorMessage = 'Tarama hatası: $e';
       _isScanning = false;
@@ -164,13 +189,30 @@ class BluetoothProvider with ChangeNotifier {
       final success = await _controller!.connect(device);
 
       if (!success) {
-        _errorMessage = 'Bağlantı başarısız';
+        if (_currentType == BluetoothDeviceType.classic) {
+          _errorMessage =
+              'Bağlantı başarısız. Cihazın açık ve menzilde olduğundan, '
+              'telefon ayarlarından eşleştirildiğinden emin olun.';
+        } else {
+          _errorMessage =
+              'BLE bağlantısı başarısız. Cihazın açık ve yakın olduğundan emin olun. '
+              'Gerekirse cihazı kapatıp tekrar açın.';
+        }
         notifyListeners();
       }
 
       return success;
     } catch (e) {
-      _errorMessage = 'Bağlantı hatası: $e';
+      final msg = e.toString();
+      if (msg.contains('timeout') || msg.contains('Timeout')) {
+        _errorMessage =
+            'Bağlantı zaman aşımı. Cihaz menzil dışında veya meşgul olabilir.';
+      } else if (msg.contains('permission') || msg.contains('Permission')) {
+        _errorMessage =
+            'Bluetooth izni reddedildi. Uygulama ayarlarını kontrol edin.';
+      } else {
+        _errorMessage = 'Bağlantı hatası: $msg';
+      }
       notifyListeners();
       return false;
     }

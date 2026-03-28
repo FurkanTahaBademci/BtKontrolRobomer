@@ -14,7 +14,7 @@ class SettingsProvider with ChangeNotifier {
   static const String _keyButtonLayout = 'button_layout';
 
   // Varsayılan buton pozisyonları (normalize: 0.0-1.0 ekran oranı)
-  // [forward, backward, left, right, stop, speed]
+  // [forward, backward, left, right, stop, speed, horn]
   static const List<Offset> _defaultButtonPositions = [
     Offset(0.5, 0.15), // ileri
     Offset(0.5, 0.75), // geri
@@ -22,6 +22,7 @@ class SettingsProvider with ChangeNotifier {
     Offset(0.85, 0.45), // sağ
     Offset(0.5, 0.88), // dur
     Offset(0.5, 0.45), // hız
+    Offset(0.15, 0.75), // korna
   ];
 
   int _defaultSpeed = 128; // 0-255, varsayılan orta hız
@@ -85,8 +86,19 @@ class SettingsProvider with ChangeNotifier {
       final layoutRaw = prefs.getString(_keyButtonLayout);
       if (layoutRaw != null) {
         final parts = layoutRaw.split(';');
-        if (parts.length == _defaultButtonPositions.length) {
+        if (parts.length >= _defaultButtonPositions.length) {
           _buttonPositions =
+              parts.take(_defaultButtonPositions.length).map((p) {
+                final xy = p.split(',');
+                return Offset(
+                  double.tryParse(xy[0]) ?? 0.5,
+                  double.tryParse(xy[1]) ?? 0.5,
+                );
+              }).toList();
+        } else if (parts.length > 0) {
+          // Eski kayıt daha az buton içeriyorsa: mevcut pozisyonları al,
+          // eksik slotlar için varsayılan değerleri kullan
+          final loaded =
               parts.map((p) {
                 final xy = p.split(',');
                 return Offset(
@@ -94,6 +106,10 @@ class SettingsProvider with ChangeNotifier {
                   double.tryParse(xy[1]) ?? 0.5,
                 );
               }).toList();
+          _buttonPositions = List.of(_defaultButtonPositions);
+          for (int i = 0; i < loaded.length; i++) {
+            _buttonPositions[i] = loaded[i];
+          }
         }
       }
 
