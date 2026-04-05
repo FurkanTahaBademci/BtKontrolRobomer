@@ -569,7 +569,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              const Icon(Icons.bluetooth_disabled, color: Colors.grey, size: 28),
+              const Icon(
+                Icons.bluetooth_disabled,
+                color: Colors.grey,
+                size: 28,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -577,11 +581,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     const Text(
                       'Bağlı değil',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
                     ),
                     Text(
                       'Cihaz listesinden bir cihaza bağlanın',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
                     ),
                   ],
                 ),
@@ -609,8 +619,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 color: Colors.green.shade100,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.bluetooth_connected,
-                  color: Colors.green, size: 22),
+              child: const Icon(
+                Icons.bluetooth_connected,
+                color: Colors.green,
+                size: 22,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -627,7 +640,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   Text(
                     '${device?.address ?? ""}  •  ${bt.currentType.name.toUpperCase()}',
-                    style: TextStyle(fontSize: 11, color: Colors.green.shade700),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.green.shade700,
+                    ),
                   ),
                 ],
               ),
@@ -639,7 +655,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.red,
                 side: const BorderSide(color: Colors.red),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 minimumSize: const Size(0, 0),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
@@ -654,30 +673,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _confirmDisconnect(BluetoothProvider bt) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Bağlantıyı Kes'),
-        content: Text(
-          '${bt.connectedDevice?.name ?? "Cihaz"} ile bağlantı kesilecek.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('İptal'),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('Bağlantıyı Kes'),
+            content: Text(
+              '${bt.connectedDevice?.name ?? "Cihaz"} ile bağlantı kesilecek.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('İptal'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await bt.disconnect();
+                  // Kök ekrana kadar geri dön (cihaz listesi)
+                  if (mounted) {
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                  }
+                },
+                child: const Text('Bağlantıyı Kes'),
+              ),
+            ],
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await bt.disconnect();
-              // Kök ekrana kadar geri dön (cihaz listesi)
-              if (mounted) {
-                Navigator.of(context).popUntil((route) => route.isFirst);
-              }
-            },
-            child: const Text('Bağlantıyı Kes'),
-          ),
-        ],
-      ),
     );
   }
 

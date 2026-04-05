@@ -358,7 +358,10 @@ class BluetoothProvider with ChangeNotifier {
     _isLatencyTesting = true;
     _latencyResults = [];
     _latencyTestError = null;
-    LogService.instance.info('TEST', 'Gecikme testi başlatıldı ($samples örnek)');
+    LogService.instance.info(
+      'TEST',
+      'Gecikme testi başlatıldı ($samples örnek)',
+    );
     notifyListeners();
     try {
       for (int i = 0; i < samples; i++) {
@@ -366,12 +369,14 @@ class BluetoothProvider with ChangeNotifier {
         final sw = Stopwatch()..start();
         await _controller!.sendCommand(RobotCommand.stop);
         sw.stop();
-        _latencyResults = List.from(_latencyResults)..add(sw.elapsedMilliseconds);
+        _latencyResults = List.from(_latencyResults)
+          ..add(sw.elapsedMilliseconds);
         notifyListeners();
         await Future.delayed(const Duration(milliseconds: 60));
       }
       if (_latencyResults.isNotEmpty) {
-        final avg = _latencyResults.reduce((a, b) => a + b) / _latencyResults.length;
+        final avg =
+            _latencyResults.reduce((a, b) => a + b) / _latencyResults.length;
         final mn = _latencyResults.reduce((a, b) => a < b ? a : b);
         final mx = _latencyResults.reduce((a, b) => a > b ? a : b);
         LogService.instance.success(

@@ -1357,17 +1357,19 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
 
       // SDK'ya göre BT sürümü tahmini
       if (Platform.isAndroid && _deviceInfo.containsKey('Platform')) {
-        final match =
-            RegExp(r'SDK (\d+)').firstMatch(_deviceInfo['Platform'] ?? '');
+        final match = RegExp(
+          r'SDK (\d+)',
+        ).firstMatch(_deviceInfo['Platform'] ?? '');
         if (match != null) {
           final sdk = int.tryParse(match.group(1) ?? '') ?? 0;
-          info['Tahmini BT Sürümü'] = sdk >= 33
-              ? 'BT 5.0+ (API $sdk)'
-              : sdk >= 26
+          info['Tahmini BT Sürümü'] =
+              sdk >= 33
+                  ? 'BT 5.0+ (API $sdk)'
+                  : sdk >= 26
                   ? 'BT 5.0 uyumlu (API $sdk)'
                   : sdk >= 21
-                      ? 'BT 4.1+ / BLE (API $sdk)'
-                      : 'BT Classic (API $sdk)';
+                  ? 'BT 4.1+ / BLE (API $sdk)'
+                  : 'BT Classic (API $sdk)';
           info['BLE Desteği'] = sdk >= 21 ? 'Evet' : 'Hayır';
           info['Genişletilmiş Reklam'] =
               sdk >= 26 ? 'Muhtemelen Evet' : 'Belirsiz';
@@ -1418,7 +1420,9 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
                     const Text(
                       'BT Sistem Bilgisi',
                       style: TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 14),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                     const Spacer(),
                     if (!_btAdapterLoading)
@@ -1457,19 +1461,21 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
               maxMs = results.reduce((a, b) => a > b ? a : b);
               avgMs = results.reduce((a, b) => a + b) / results.length;
               if (results.length > 1) {
-                final variance = results
+                final variance =
+                    results
                         .map((v) => (v - avgMs!) * (v - avgMs))
                         .reduce((a, b) => a + b) /
                     results.length;
                 stdDev = variance > 0 ? variance / variance * variance : 0;
                 // correct stddev
-                stdDev = results.length > 1
-                    ? (results
-                                .map((v) => (v - avgMs!) * (v - avgMs))
-                                .reduce((a, b) => a + b) /
-                            results.length)
-                        .toDouble()
-                    : 0;
+                stdDev =
+                    results.length > 1
+                        ? (results
+                                    .map((v) => (v - avgMs!) * (v - avgMs))
+                                    .reduce((a, b) => a + b) /
+                                results.length)
+                            .toDouble()
+                        : 0;
                 stdDev = stdDev > 0 ? stdDev.abs() : 0;
                 // sqrt via iteration
                 if (stdDev > 0) {
@@ -1490,13 +1496,18 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.timer_outlined,
-                            size: 16, color: Colors.orange),
+                        const Icon(
+                          Icons.timer_outlined,
+                          size: 16,
+                          color: Colors.orange,
+                        ),
                         const SizedBox(width: 6),
                         const Text(
                           'Gecikme Testi',
                           style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 13),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
                         ),
                         const Spacer(),
                         if (results.isNotEmpty && !bt.isLatencyTesting)
@@ -1511,10 +1522,9 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
                       'BT soket yazma gecikmesini ölçer. Bağlı cihaz gereklidir.',
                       style: TextStyle(
                         fontSize: 11,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withOpacity(0.6),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withOpacity(0.6),
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -1527,10 +1537,9 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
                             'Örnek:',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withOpacity(0.7),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withOpacity(0.7),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -1538,20 +1547,25 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
                             Padding(
                               padding: const EdgeInsets.only(right: 6),
                               child: GestureDetector(
-                                onTap: () =>
-                                    setState(() => _latencySampleCount = n),
+                                onTap:
+                                    () =>
+                                        setState(() => _latencySampleCount = n),
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 150),
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 4),
+                                    horizontal: 12,
+                                    vertical: 4,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: _latencySampleCount == n
-                                        ? Colors.orange.withOpacity(0.2)
-                                        : Colors.transparent,
+                                    color:
+                                        _latencySampleCount == n
+                                            ? Colors.orange.withOpacity(0.2)
+                                            : Colors.transparent,
                                     border: Border.all(
-                                      color: _latencySampleCount == n
-                                          ? Colors.orange
-                                          : Colors.grey.withOpacity(0.4),
+                                      color:
+                                          _latencySampleCount == n
+                                              ? Colors.orange
+                                              : Colors.grey.withOpacity(0.4),
                                     ),
                                     borderRadius: BorderRadius.circular(16),
                                   ),
@@ -1559,12 +1573,14 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
                                     '$n',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      fontWeight: _latencySampleCount == n
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
-                                      color: _latencySampleCount == n
-                                          ? Colors.orange
-                                          : null,
+                                      fontWeight:
+                                          _latencySampleCount == n
+                                              ? FontWeight.bold
+                                              : FontWeight.normal,
+                                      color:
+                                          _latencySampleCount == n
+                                              ? Colors.orange
+                                              : null,
                                     ),
                                   ),
                                 ),
@@ -1583,20 +1599,26 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
                             width: 14,
                             height: 14,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.orange),
+                              strokeWidth: 2,
+                              color: Colors.orange,
+                            ),
                           ),
                           const SizedBox(width: 8),
                           Text(
                             '${results.length} / $_latencySampleCount ölçüm...',
                             style: const TextStyle(
-                                fontSize: 12, color: Colors.orange),
+                              fontSize: 12,
+                              color: Colors.orange,
+                            ),
                           ),
                           if (results.isNotEmpty) ...[
                             const SizedBox(width: 8),
                             Text(
                               'Son: ${results.last}ms',
                               style: const TextStyle(
-                                  fontSize: 11, fontFamily: 'monospace'),
+                                fontSize: 11,
+                                fontFamily: 'monospace',
+                              ),
                             ),
                           ],
                         ],
@@ -1620,12 +1642,18 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
                           _latencyStat('MIN', '${minMs}ms', Colors.green),
-                          _latencyStat('ORT',
-                              '${avgMs!.toStringAsFixed(1)}ms', Colors.blue),
+                          _latencyStat(
+                            'ORT',
+                            '${avgMs!.toStringAsFixed(1)}ms',
+                            Colors.blue,
+                          ),
                           _latencyStat('MAKS', '${maxMs}ms', Colors.red),
                           if (stdDev != null)
-                            _latencyStat('σ',
-                                '${stdDev.toStringAsFixed(1)}ms', Colors.grey),
+                            _latencyStat(
+                              'σ',
+                              '${stdDev.toStringAsFixed(1)}ms',
+                              Colors.grey,
+                            ),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -1634,20 +1662,20 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
                       Align(
                         alignment: Alignment.centerRight,
                         child: Text(
-                          results.where((v) => v <= 15).length ==
-                                  results.length
+                          results.where((v) => v <= 15).length == results.length
                               ? '✓ Gecikme İYİ'
                               : results.where((v) => v > 30).length >
-                                      results.length ~/ 3
-                                  ? '⚠ Gecikme YÜKSEK'
-                                  : '~ Gecikme ORTA',
+                                  results.length ~/ 3
+                              ? '⚠ Gecikme YÜKSEK'
+                              : '~ Gecikme ORTA',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: results.where((v) => v <= 15).length ==
-                                    results.length
-                                ? Colors.green
-                                : results.where((v) => v > 30).length >
+                            color:
+                                results.where((v) => v <= 15).length ==
+                                        results.length
+                                    ? Colors.green
+                                    : results.where((v) => v > 30).length >
                                         results.length ~/ 3
                                     ? Colors.red
                                     : Colors.orange,
@@ -1663,7 +1691,9 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
                         child: Text(
                           bt.latencyTestError!,
                           style: const TextStyle(
-                              color: Colors.red, fontSize: 12),
+                            color: Colors.red,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
 
@@ -1671,13 +1701,17 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
                       width: double.infinity,
                       child: FilledButton.icon(
                         icon: const Icon(Icons.timer_outlined, size: 16),
-                        label: Text(bt.isLatencyTesting
-                            ? 'Test Çalışıyor...'
-                            : 'Gecikme Testi Başlat'),
-                        onPressed: isBusy || !bt.isConnected
-                            ? null
-                            : () => bt.runLatencyTest(
-                                samples: _latencySampleCount),
+                        label: Text(
+                          bt.isLatencyTesting
+                              ? 'Test Çalışıyor...'
+                              : 'Gecikme Testi Başlat',
+                        ),
+                        onPressed:
+                            isBusy || !bt.isConnected
+                                ? null
+                                : () => bt.runLatencyTest(
+                                  samples: _latencySampleCount,
+                                ),
                       ),
                     ),
                     if (!bt.isConnected)
@@ -1728,13 +1762,18 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
                   children: [
                     const Row(
                       children: [
-                        Icon(Icons.rocket_launch_outlined,
-                            size: 16, color: Colors.blue),
+                        Icon(
+                          Icons.rocket_launch_outlined,
+                          size: 16,
+                          color: Colors.blue,
+                        ),
                         SizedBox(width: 6),
                         Text(
                           'Burst Testi',
                           style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 13),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
                         ),
                       ],
                     ),
@@ -1742,10 +1781,9 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
                       '30 komutu arka arkaya göndererek maksimum komut/saniye değerini ölçer.',
                       style: TextStyle(
                         fontSize: 11,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withOpacity(0.6),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withOpacity(0.6),
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -1757,13 +1795,14 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
                             width: 14,
                             height: 14,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.blue),
+                              strokeWidth: 2,
+                              color: Colors.blue,
+                            ),
                           ),
                           SizedBox(width: 8),
                           Text(
                             'Burst testi çalışıyor...',
-                            style: TextStyle(
-                                fontSize: 12, color: Colors.blue),
+                            style: TextStyle(fontSize: 12, color: Colors.blue),
                           ),
                         ],
                       ),
@@ -1789,10 +1828,9 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
                               'komut / saniye',
                               style: TextStyle(
                                 fontSize: 13,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurface
-                                    .withOpacity(0.6),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withOpacity(0.6),
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -1813,16 +1851,22 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton.icon(
-                        icon: const Icon(Icons.rocket_launch_outlined,
-                            size: 16),
-                        label: Text(bt.isBurstTesting
-                            ? 'Test Çalışıyor...'
-                            : 'Burst Testi Başlat'),
+                        icon: const Icon(
+                          Icons.rocket_launch_outlined,
+                          size: 16,
+                        ),
+                        label: Text(
+                          bt.isBurstTesting
+                              ? 'Test Çalışıyor...'
+                              : 'Burst Testi Başlat',
+                        ),
                         style: FilledButton.styleFrom(
-                            backgroundColor: Colors.blue),
-                        onPressed: isBusy || !bt.isConnected
-                            ? null
-                            : () => bt.runBurstTest(),
+                          backgroundColor: Colors.blue,
+                        ),
+                        onPressed:
+                            isBusy || !bt.isConnected
+                                ? null
+                                : () => bt.runBurstTest(),
                       ),
                     ),
                     if (!bt.isConnected)
@@ -1862,8 +1906,7 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
           label,
           style: TextStyle(
             fontSize: 10,
-            color:
-                Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
           ),
         ),
       ],
@@ -1872,36 +1915,44 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
 
   Widget _buildLatencyChart(List<int> results) {
     if (results.isEmpty) return const SizedBox.shrink();
-    final maxVal =
-        results.reduce((a, b) => a > b ? a : b).toDouble().clamp(1.0, 1e9);
+    final maxVal = results
+        .reduce((a, b) => a > b ? a : b)
+        .toDouble()
+        .clamp(1.0, 1e9);
 
     return SizedBox(
       height: 64,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
-        children: results.map((v) {
-          final ratio = (v / maxVal).clamp(0.05, 1.0);
-          final color =
-              v <= 10 ? Colors.green : v <= 30 ? Colors.orange : Colors.red;
-          return Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 1),
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: FractionallySizedBox(
-                  heightFactor: ratio,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: color,
-                      borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(2)),
+        children:
+            results.map((v) {
+              final ratio = (v / maxVal).clamp(0.05, 1.0);
+              final color =
+                  v <= 10
+                      ? Colors.green
+                      : v <= 30
+                      ? Colors.orange
+                      : Colors.red;
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 1),
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: FractionallySizedBox(
+                      heightFactor: ratio,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(2),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-          );
-        }).toList(),
+              );
+            }).toList(),
       ),
     );
   }
