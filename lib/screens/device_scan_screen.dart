@@ -252,19 +252,24 @@ class _DeviceScanScreenState extends State<DeviceScanScreen> {
         final device = sortedDevices[index];
         final lastConnectedAddress =
             context.read<ConnectionHistoryProvider>().history.isNotEmpty
-                ? context.read<ConnectionHistoryProvider>().history.first.address
+                ? context
+                    .read<ConnectionHistoryProvider>()
+                    .history
+                    .first
+                    .address
                 : null;
         return DeviceListTile(
           device: device,
           onTap: () => _connectToDevice(device, provider),
           isScanning: provider.isScanning,
           isLastConnected: device.address == lastConnectedAddress,
-          isActive: !provider.isScanning &&
-                  provider.devices.isNotEmpty &&
-                  device.rssi == null &&
-                  provider.currentType == BluetoothDeviceType.classic
-              ? false
-              : null,
+          isActive:
+              !provider.isScanning &&
+                      provider.devices.isNotEmpty &&
+                      device.rssi == null &&
+                      provider.currentType == BluetoothDeviceType.classic
+                  ? false
+                  : null,
         );
       },
     );
@@ -278,8 +283,7 @@ class _DeviceScanScreenState extends State<DeviceScanScreen> {
     // Tarama devam ederken sıralama yapma
     if (provider.isScanning) return provider.devices;
 
-    final history =
-        context.read<ConnectionHistoryProvider>().history;
+    final history = context.read<ConnectionHistoryProvider>().history;
     final lastAddress = history.isNotEmpty ? history.first.address : null;
 
     final sorted = [...provider.devices];

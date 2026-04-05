@@ -59,9 +59,7 @@ class DeviceListTile extends StatelessWidget {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            color: isLastConnected
-                                ? Colors.indigo[700]
-                                : null,
+                            color: isLastConnected ? Colors.indigo[700] : null,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
