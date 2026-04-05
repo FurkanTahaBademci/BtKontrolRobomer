@@ -6,6 +6,7 @@ import 'package:bt_kontrol_robomer/providers/settings_provider.dart';
 import 'package:bt_kontrol_robomer/core/bluetooth/models/robot_command.dart';
 import 'package:bt_kontrol_robomer/widgets/direction_button.dart';
 import 'package:bt_kontrol_robomer/widgets/connection_status_indicator.dart';
+import 'package:bt_kontrol_robomer/screens/settings_screen.dart';
 
 /// Robot kontrol ekranı
 class RobotControlScreen extends StatefulWidget {
@@ -97,6 +98,18 @@ class _RobotControlScreenState extends State<RobotControlScreen> {
             },
           ),
           actions: [
+            IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              tooltip: 'Ayarlar',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const SettingsScreen(),
+                  ),
+                );
+              },
+            ),
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: Center(

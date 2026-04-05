@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:bt_kontrol_robomer/providers/settings_provider.dart';
+import 'package:bt_kontrol_robomer/providers/bluetooth_provider.dart';
 import 'package:bt_kontrol_robomer/services/update_service.dart';
 import 'package:bt_kontrol_robomer/models/version_info.dart';
 import 'package:bt_kontrol_robomer/widgets/update_dialog.dart';
 import 'package:bt_kontrol_robomer/screens/button_layout_editor_screen.dart';
+import 'package:bt_kontrol_robomer/screens/developer_panel_screen.dart';
 
 /// Ayarlar ekranı
 class SettingsScreen extends StatefulWidget {
@@ -18,11 +21,30 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   String _appVersion = '';
+  int _devTapCount = 0;
+  DateTime? _firstDevTap;
 
   @override
   void initState() {
     super.initState();
     _loadVersion();
+    // Ayarlar her zaman dikey açılsın
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+  }
+
+  @override
+  void dispose() {
+    // Ayarlardan çıkınca yönü tamamen serbest bırak
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+    super.dispose();
   }
 
   Future<void> _loadVersion() async {
@@ -36,11 +58,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final settingsProvider = context.watch<SettingsProvider>();
 
+    final btProvider = context.watch<BluetoothProvider>();
+
     return Scaffold(
       appBar: AppBar(title: const Text('Ayarlar'), centerTitle: true),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Bağlantı Durumu
+          _buildSectionTitle('Bluetooth Bağlantısı'),
+          _buildConnectionCard(btProvider),
+          const SizedBox(height: 16),
+
           // Görünüm Ayarları
           _buildSectionTitle('Görünüm'),
           Card(
@@ -409,11 +438,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  Image.asset(
-                    'assets/images/app_logo.png',
-                    height: 80,
-                    width: 80,
-                    fit: BoxFit.contain,
+                  GestureDetector(
+                    onTap: _onDevNameTap,
+                    child: Image.asset(
+                      'assets/images/app_logo.png',
+                      height: 80,
+                      width: 80,
+                      fit: BoxFit.contain,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   const Text(
@@ -522,6 +554,128 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConnectionCard(BluetoothProvider bt) {
+    final isConnected = bt.isConnected;
+    final device = bt.connectedDevice;
+
+    if (!isConnected) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              const Icon(Icons.bluetooth_disabled, color: Colors.grey, size: 28),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Bağlı değil',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                    Text(
+                      'Cihaz listesinden bir cihaza bağlanın',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      color: Colors.green.shade50,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.green.shade200),
+      ),
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.green.shade100,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.bluetooth_connected,
+                  color: Colors.green, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    device?.name ?? 'Bağlı Cihaz',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    '${device?.address ?? ""}  •  ${bt.currentType.name.toUpperCase()}',
+                    style: TextStyle(fontSize: 11, color: Colors.green.shade700),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.link_off, size: 16),
+              label: const Text('Kes'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red,
+                side: const BorderSide(color: Colors.red),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                minimumSize: const Size(0, 0),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              onPressed: () => _confirmDisconnect(bt),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDisconnect(BluetoothProvider bt) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Bağlantıyı Kes'),
+        content: Text(
+          '${bt.connectedDevice?.name ?? "Cihaz"} ile bağlantı kesilecek.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('İptal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await bt.disconnect();
+              // Kök ekrana kadar geri dön (cihaz listesi)
+              if (mounted) {
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              }
+            },
+            child: const Text('Bağlantıyı Kes'),
+          ),
         ],
       ),
     );
@@ -728,6 +882,102 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Navigator.of(context).pop(); // Loading kapat
         _showMessage('Bir hata oluştu: $e', isError: true);
       }
+    }
+  }
+
+  void _onDevNameTap() {
+    final now = DateTime.now();
+    if (_firstDevTap == null ||
+        now.difference(_firstDevTap!) > const Duration(seconds: 3)) {
+      _firstDevTap = now;
+      _devTapCount = 1;
+    } else {
+      _devTapCount++;
+    }
+
+    if (_devTapCount >= 3) {
+      _devTapCount = 0;
+      _firstDevTap = null;
+      _showDevPasswordDialog();
+    }
+  }
+
+  void _showDevPasswordDialog() {
+    final controller = TextEditingController();
+    bool hasError = false;
+
+    showDialog(
+      context: context,
+      builder:
+          (ctx) => StatefulBuilder(
+            builder:
+                (ctx, setDialogState) => AlertDialog(
+                  title: const Row(
+                    children: [
+                      Icon(Icons.lock_outline, color: Colors.orange),
+                      SizedBox(width: 8),
+                      Text('Geliştirici Girişi'),
+                    ],
+                  ),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: controller,
+                        obscureText: true,
+                        keyboardType: TextInputType.number,
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          hintText: 'Şifre',
+                          border: const OutlineInputBorder(),
+                          errorText: hasError ? 'Hatalı şifre' : null,
+                          prefixIcon: const Icon(Icons.password),
+                        ),
+                        onSubmitted:
+                            (_) => _checkDevPassword(
+                              controller.text,
+                              ctx,
+                              setDialogState,
+                              () => hasError = true,
+                            ),
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('İptal'),
+                    ),
+                    FilledButton(
+                      onPressed:
+                          () => _checkDevPassword(
+                            controller.text,
+                            ctx,
+                            setDialogState,
+                            () => hasError = true,
+                          ),
+                      child: const Text('Giriş'),
+                    ),
+                  ],
+                ),
+          ),
+    );
+  }
+
+  void _checkDevPassword(
+    String input,
+    BuildContext ctx,
+    StateSetter setDialogState,
+    VoidCallback markError,
+  ) {
+    if (input == '123') {
+      Navigator.pop(ctx);
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const DeveloperPanelScreen()),
+      );
+    } else {
+      setDialogState(markError);
     }
   }
 

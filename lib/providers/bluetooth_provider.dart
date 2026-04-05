@@ -8,6 +8,7 @@ import 'package:bt_kontrol_robomer/core/bluetooth/models/connection_state.dart';
 import 'package:bt_kontrol_robomer/core/bluetooth/models/robot_command.dart';
 import 'package:bt_kontrol_robomer/core/constants/bluetooth_constants.dart';
 import 'package:bt_kontrol_robomer/core/permissions/bluetooth_permission_handler.dart';
+import 'package:bt_kontrol_robomer/services/log_service.dart';
 
 /// Bluetooth işlemlerini yöneten Provider
 class BluetoothProvider with ChangeNotifier {
@@ -21,6 +22,36 @@ class BluetoothProvider with ChangeNotifier {
   int _currentSpeed = 150; // Varsayılan PWM hızı (0-255)
   bool _isScanning = false;
   String? _errorMessage;
+
+  // İstatistikler
+  int _cmdSent = 0;
+  int _cmdFailed = 0;
+  int _scanCount = 0;
+  int _connectCount = 0;
+  int _disconnectCount = 0;
+  DateTime? _connectedAt;
+
+  // Gecikme / Hız testi
+  bool _isLatencyTesting = false;
+  bool _isBurstTesting = false;
+  List<int> _latencyResults = [];
+  int _burstCommandsPerSec = 0;
+  String? _latencyTestError;
+
+  // Getters — istatistikler
+  int get cmdSent => _cmdSent;
+  int get cmdFailed => _cmdFailed;
+  int get scanCount => _scanCount;
+  int get connectCount => _connectCount;
+  int get disconnectCount => _disconnectCount;
+  DateTime? get connectedAt => _connectedAt;
+
+  // Getters — test
+  bool get isLatencyTesting => _isLatencyTesting;
+  bool get isBurstTesting => _isBurstTesting;
+  List<int> get latencyResults => List.unmodifiable(_latencyResults);
+  int get burstCommandsPerSec => _burstCommandsPerSec;
+  String? get latencyTestError => _latencyTestError;
 
   StreamSubscription<List<BluetoothDeviceModel>>? _devicesSubscription;
   StreamSubscription<ConnectionState>? _connectionSubscription;
@@ -38,7 +69,10 @@ class BluetoothProvider with ChangeNotifier {
   /// Bluetooth tipini değiştir (Classic veya BLE)
   void setBluetoothType(BluetoothDeviceType type) {
     if (_currentType != type) {
-      // Mevcut controller'ı temizle
+      LogService.instance.info(
+        'BT',
+        'Tip değiştirildi: ${type.name.toUpperCase()}',
+      );
       _disposeController();
 
       _currentType = type;
@@ -74,8 +108,21 @@ class BluetoothProvider with ChangeNotifier {
 
       if (state == ConnectionState.error) {
         _errorMessage = 'Bağlantı hatası oluştu';
+        LogService.instance.error(
+          'BT',
+          'Bağlantı hatası: ${_connectedDevice?.name ?? "?"}',
+        );
       } else if (state == ConnectionState.disconnected) {
+        LogService.instance.warn(
+          'BT',
+          'Bağlantı kesildi: ${_connectedDevice?.name ?? "?"}',
+        );
         _connectedDevice = null;
+      } else if (state == ConnectionState.connected) {
+        LogService.instance.success(
+          'BT',
+          'Bağlandı: ${_connectedDevice?.name ?? "?"}',
+        );
       }
 
       notifyListeners();
@@ -95,6 +142,7 @@ class BluetoothProvider with ChangeNotifier {
 
       if (!hasPermissions) {
         _errorMessage = 'Bluetooth izinleri gerekli';
+        LogService.instance.error('Permission', 'Bluetooth izni reddedildi');
         notifyListeners();
       }
 
@@ -126,6 +174,7 @@ class BluetoothProvider with ChangeNotifier {
       final isEnabled = await _controller!.isBluetoothEnabled();
       if (!isEnabled) {
         _errorMessage = 'Bluetooth kapalı';
+        LogService.instance.warn('BT', 'Bluetooth kapalı, açılıyor...');
         notifyListeners();
         await _controller!.enableBluetooth();
         return;
@@ -138,6 +187,10 @@ class BluetoothProvider with ChangeNotifier {
         if (!locationEnabled) {
           _errorMessage =
               'BLE tarama için konum servisi açık olmalıdır. Lütfen konum servisini açın.';
+          LogService.instance.warn(
+            'BLE',
+            'Konum servisi kapalı, tarama başlatılamıyor',
+          );
           notifyListeners();
           return;
         }
@@ -145,6 +198,11 @@ class BluetoothProvider with ChangeNotifier {
 
       _isScanning = true;
       _devices.clear();
+      _scanCount++;
+      LogService.instance.info(
+        'BT',
+        '${_currentType.name.toUpperCase()} tarama başlatıldı (toplam: $_scanCount)',
+      );
       notifyListeners();
 
       await _controller!.startScan();
@@ -156,6 +214,10 @@ class BluetoothProvider with ChangeNotifier {
         () {
           if (_isScanning) {
             _isScanning = false;
+            LogService.instance.info(
+              'BT',
+              'Tarama tamamlandı — ${_devices.length} cihaz bulundu',
+            );
             notifyListeners();
           }
         },
@@ -163,6 +225,7 @@ class BluetoothProvider with ChangeNotifier {
     } catch (e) {
       _errorMessage = 'Tarama hatası: $e';
       _isScanning = false;
+      LogService.instance.error('BT', 'Tarama hatası: $e');
       notifyListeners();
     }
   }
@@ -170,6 +233,7 @@ class BluetoothProvider with ChangeNotifier {
   /// Taramayı durdur
   Future<void> stopScan() async {
     _isScanning = false;
+    LogService.instance.info('BT', 'Tarama durduruldu');
     await _controller?.stopScan();
     notifyListeners();
   }
@@ -186,6 +250,10 @@ class BluetoothProvider with ChangeNotifier {
 
       await stopScan();
 
+      LogService.instance.info(
+        'BT',
+        'Bağlanılıyor: ${device.name} [${device.address}]',
+      );
       final success = await _controller!.connect(device);
 
       if (!success) {
@@ -198,7 +266,14 @@ class BluetoothProvider with ChangeNotifier {
               'BLE bağlantısı başarısız. Cihazın açık ve yakın olduğundan emin olun. '
               'Gerekirse cihazı kapatıp tekrar açın.';
         }
+        LogService.instance.error(
+          'BT',
+          'Bağlantı başarısız: ${device.name} — $_errorMessage',
+        );
         notifyListeners();
+      } else {
+        _connectCount++;
+        _connectedAt = DateTime.now();
       }
 
       return success;
@@ -213,6 +288,7 @@ class BluetoothProvider with ChangeNotifier {
       } else {
         _errorMessage = 'Bağlantı hatası: $msg';
       }
+      LogService.instance.error('BT', 'Bağlantı exception: $msg');
       notifyListeners();
       return false;
     }
@@ -221,11 +297,18 @@ class BluetoothProvider with ChangeNotifier {
   /// Bağlantıyı kes
   Future<void> disconnect() async {
     try {
+      LogService.instance.info(
+        'BT',
+        'Bağlantı kesiliyor: ${_connectedDevice?.name ?? "?"}',
+      );
+      _disconnectCount++;
+      _connectedAt = null;
       await _controller?.disconnect();
       _connectedDevice = null;
       notifyListeners();
     } catch (e) {
       _errorMessage = 'Bağlantı kesme hatası: $e';
+      LogService.instance.error('BT', 'Bağlantı kesme hatası: $e');
       notifyListeners();
     }
   }
@@ -235,9 +318,13 @@ class BluetoothProvider with ChangeNotifier {
     if (_controller == null || !isConnected) {
       return false;
     }
-
-    // Hata yakalamadan direkt gönder (hız için)
-    return await _controller!.sendCommand(command);
+    final result = await _controller!.sendCommand(command);
+    if (result) {
+      _cmdSent++;
+    } else {
+      _cmdFailed++;
+    }
+    return result;
   }
 
   /// Hız komut gönder
@@ -259,6 +346,90 @@ class BluetoothProvider with ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  /// Gecikme testi — N adet 'S' komutu göndererek BT yazma gecikmesini ölçer
+  Future<void> runLatencyTest({int samples = 20}) async {
+    if (!isConnected || _controller == null) {
+      _latencyTestError = 'Test için bağlı cihaz gerekli';
+      notifyListeners();
+      return;
+    }
+    _isLatencyTesting = true;
+    _latencyResults = [];
+    _latencyTestError = null;
+    LogService.instance.info('TEST', 'Gecikme testi başlatıldı ($samples örnek)');
+    notifyListeners();
+    try {
+      for (int i = 0; i < samples; i++) {
+        if (!isConnected) break;
+        final sw = Stopwatch()..start();
+        await _controller!.sendCommand(RobotCommand.stop);
+        sw.stop();
+        _latencyResults = List.from(_latencyResults)..add(sw.elapsedMilliseconds);
+        notifyListeners();
+        await Future.delayed(const Duration(milliseconds: 60));
+      }
+      if (_latencyResults.isNotEmpty) {
+        final avg = _latencyResults.reduce((a, b) => a + b) / _latencyResults.length;
+        final mn = _latencyResults.reduce((a, b) => a < b ? a : b);
+        final mx = _latencyResults.reduce((a, b) => a > b ? a : b);
+        LogService.instance.success(
+          'TEST',
+          'Gecikme bitti — min:${mn}ms ort:${avg.toStringAsFixed(1)}ms maks:${mx}ms',
+        );
+      }
+    } catch (e) {
+      _latencyTestError = 'Hata: $e';
+      LogService.instance.error('TEST', 'Gecikme testi hatası: $e');
+    } finally {
+      _isLatencyTesting = false;
+      notifyListeners();
+    }
+  }
+
+  /// Burst testi — 30 komutu arka arkaya göndererek cmd/s değerini ölçer
+  Future<void> runBurstTest({int count = 30}) async {
+    if (!isConnected || _controller == null) {
+      _latencyTestError = 'Test için bağlı cihaz gerekli';
+      notifyListeners();
+      return;
+    }
+    _isBurstTesting = true;
+    _burstCommandsPerSec = 0;
+    _latencyTestError = null;
+    LogService.instance.info('TEST', 'Burst testi başlatıldı ($count komut)');
+    notifyListeners();
+    try {
+      final sw = Stopwatch()..start();
+      int sent = 0;
+      for (int i = 0; i < count; i++) {
+        if (!isConnected) break;
+        final ok = await _controller!.sendCommand(RobotCommand.stop);
+        if (ok) sent++;
+      }
+      sw.stop();
+      final secs = sw.elapsedMilliseconds / 1000.0;
+      _burstCommandsPerSec = secs > 0 ? (sent / secs).round() : 0;
+      LogService.instance.success(
+        'TEST',
+        'Burst bitti — $sent/$count komut, ${sw.elapsedMilliseconds}ms → $_burstCommandsPerSec cmd/s',
+      );
+    } catch (e) {
+      _latencyTestError = 'Burst test hatası: $e';
+      LogService.instance.error('TEST', 'Burst test hatası: $e');
+    } finally {
+      _isBurstTesting = false;
+      notifyListeners();
+    }
+  }
+
+  /// Test sonuçlarını sıfırla
+  void clearTestResults() {
+    _latencyResults = [];
+    _burstCommandsPerSec = 0;
+    _latencyTestError = null;
+    notifyListeners();
   }
 
   /// Hız değerini güncelle (local)

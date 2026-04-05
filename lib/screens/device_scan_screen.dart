@@ -330,6 +330,9 @@ class _DeviceScanScreenState extends State<DeviceScanScreen> {
       Navigator.of(context).pop(); // Dialog kapat
 
       if (success) {
+        // Geçmişe kaydet
+        context.read<ConnectionHistoryProvider>().saveDevice(device);
+
         // Kontrol ekranına git
         Navigator.of(context).push(
           MaterialPageRoute(builder: (context) => const RobotControlScreen()),
@@ -367,14 +370,45 @@ class _DeviceScanScreenState extends State<DeviceScanScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                RichText(
-                  text: TextSpan(
-                    style: DefaultTextStyle.of(context).style,
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const TextSpan(text: 'Cihaz: '),
-                      TextSpan(
-                        text: device.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      Text(
+                        'Cihaz',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withOpacity(0.5),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        device.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                      Text(
+                        device.address,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withOpacity(0.5),
+                        ),
                       ),
                     ],
                   ),
