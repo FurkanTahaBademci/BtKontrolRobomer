@@ -12,6 +12,15 @@ class BluetoothDeviceModel {
     this.rssi,
   });
 
+  BluetoothDeviceModel copyWith({int? rssi}) {
+    return BluetoothDeviceModel(
+      name: name,
+      address: address,
+      type: type,
+      rssi: rssi ?? this.rssi,
+    );
+  }
+
   @override
   String toString() =>
       'BluetoothDeviceModel(name: $name, address: $address, type: $type)';

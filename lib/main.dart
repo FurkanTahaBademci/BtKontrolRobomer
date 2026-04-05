@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:bt_kontrol_robomer/providers/bluetooth_provider.dart';
 import 'package:bt_kontrol_robomer/providers/settings_provider.dart';
+import 'package:bt_kontrol_robomer/providers/connection_history_provider.dart';
 import 'package:bt_kontrol_robomer/screens/splash_screen.dart';
 
 void main() {
@@ -31,6 +32,9 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => BluetoothProvider()),
         ChangeNotifierProvider(
           create: (_) => SettingsProvider()..loadSettings(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => ConnectionHistoryProvider()..loadHistory(),
         ),
       ],
       child: Consumer<SettingsProvider>(

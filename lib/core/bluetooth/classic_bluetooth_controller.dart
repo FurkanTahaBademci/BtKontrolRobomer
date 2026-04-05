@@ -79,11 +79,17 @@ class ClassicBluetoothController implements BluetoothController {
             rssi: result.rssi,
           );
 
-          // Duplicate kontrolü
-          if (!_discoveredDevices.any((d) => d.address == newDevice.address)) {
+          // Duplicate kontrolü - eşlenmiş cihaz yeniden keşfedilirse rssi güncelle
+          final existingIndex = _discoveredDevices.indexWhere(
+            (d) => d.address == newDevice.address,
+          );
+          if (existingIndex >= 0) {
+            _discoveredDevices[existingIndex] =
+                _discoveredDevices[existingIndex].copyWith(rssi: result.rssi);
+          } else {
             _discoveredDevices.add(newDevice);
-            _devicesController.add(List.from(_discoveredDevices));
           }
+          _devicesController.add(List.from(_discoveredDevices));
         }
       });
 

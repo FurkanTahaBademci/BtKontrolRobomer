@@ -8,6 +8,8 @@ class DeviceListTile extends StatelessWidget {
   final bool isFromHistory;
   final bool? isActive; // null = bilinmiyor (geçmişte tarama yapılmamış)
   final VoidCallback? onDelete;
+  final bool isScanning; // tarama devam ediyor mu?
+  final bool isLastConnected; // son bağlanan cihaz mı?
 
   const DeviceListTile({
     super.key,
@@ -16,6 +18,8 @@ class DeviceListTile extends StatelessWidget {
     this.isFromHistory = false,
     this.isActive,
     this.onDelete,
+    this.isScanning = false,
+    this.isLastConnected = false,
   });
 
   @override
@@ -52,9 +56,12 @@ class DeviceListTile extends StatelessWidget {
                       children: [
                         Text(
                           device.name,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
+                            color: isLastConnected
+                                ? Colors.indigo[700]
+                                : null,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -74,6 +81,37 @@ class DeviceListTile extends StatelessWidget {
                           runSpacing: 4,
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
+                            // Son bağlanan etiketi
+                            if (isLastConnected)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.indigo.shade100,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.history_toggle_off,
+                                      size: 10,
+                                      color: Colors.indigo.shade800,
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      'Son Bağlanan',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.indigo.shade800,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 6,
@@ -100,7 +138,32 @@ class DeviceListTile extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            if (device.rssi != null)
+                            if (isScanning &&
+                                device.rssi == null &&
+                                device.type == BluetoothDeviceType.classic)
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    width: 10,
+                                    height: 10,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 1.5,
+                                      color: Colors.orange,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'taranıyor...',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.orange[700],
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            else if (device.rssi != null)
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -111,7 +174,7 @@ class DeviceListTile extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 2),
                                   Text(
-                                    '${device.rssi}',
+                                    '${device.rssi} dBm',
                                     style: TextStyle(
                                       fontSize: 10,
                                       color: Colors.grey[600],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:bt_kontrol_robomer/providers/bluetooth_provider.dart';
 import 'package:bt_kontrol_robomer/providers/settings_provider.dart';
+import 'package:bt_kontrol_robomer/providers/connection_history_provider.dart';
 import 'package:bt_kontrol_robomer/core/bluetooth/models/bluetooth_device_model.dart';
 import 'package:bt_kontrol_robomer/widgets/device_list_tile.dart';
 import 'package:bt_kontrol_robomer/screens/robot_control_screen.dart';
@@ -20,6 +21,7 @@ class _DeviceScanScreenState extends State<DeviceScanScreen> {
   Widget build(BuildContext context) {
     final bluetoothProvider = context.watch<BluetoothProvider>();
     final settingsProvider = context.watch<SettingsProvider>();
+    context.watch<ConnectionHistoryProvider>(); // yeniden sıralama için dinle
 
     return Scaffold(
       appBar: AppBar(
@@ -246,13 +248,56 @@ class _DeviceScanScreenState extends State<DeviceScanScreen> {
       padding: const EdgeInsets.only(top: 8, bottom: 16),
       itemCount: provider.devices.length,
       itemBuilder: (context, index) {
-        final device = provider.devices[index];
+        final sortedDevices = _sortedDevices(provider);
+        final device = sortedDevices[index];
+        final lastConnectedAddress =
+            context.read<ConnectionHistoryProvider>().history.isNotEmpty
+                ? context.read<ConnectionHistoryProvider>().history.first.address
+                : null;
         return DeviceListTile(
           device: device,
           onTap: () => _connectToDevice(device, provider),
+          isScanning: provider.isScanning,
+          isLastConnected: device.address == lastConnectedAddress,
+          isActive: !provider.isScanning &&
+                  provider.devices.isNotEmpty &&
+                  device.rssi == null &&
+                  provider.currentType == BluetoothDeviceType.classic
+              ? false
+              : null,
         );
       },
     );
+  }
+
+  /// Tarama tamamlanınca listeyi sırala:
+  /// 1. Son bağlanan cihaz (geçmişin ilk elemanı)
+  /// 2. Aktif cihazlar (RSSI var) — sinyal gücüne göre güçlüden zayıfa
+  /// 3. Kapsama dışı cihazlar
+  List<BluetoothDeviceModel> _sortedDevices(BluetoothProvider provider) {
+    // Tarama devam ederken sıralama yapma
+    if (provider.isScanning) return provider.devices;
+
+    final history =
+        context.read<ConnectionHistoryProvider>().history;
+    final lastAddress = history.isNotEmpty ? history.first.address : null;
+
+    final sorted = [...provider.devices];
+    sorted.sort((a, b) {
+      final aIsLast = a.address == lastAddress;
+      final bIsLast = b.address == lastAddress;
+      if (aIsLast && !bIsLast) return -1;
+      if (!aIsLast && bIsLast) return 1;
+
+      final aActive = a.rssi != null;
+      final bActive = b.rssi != null;
+      if (aActive && !bActive) return -1;
+      if (!aActive && bActive) return 1;
+      if (aActive && bActive) return b.rssi!.compareTo(a.rssi!);
+
+      return 0;
+    });
+    return sorted;
   }
 
   Future<void> _connectToDevice(

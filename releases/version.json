@@ -1,10 +1,10 @@
 {
-  "latestVersion": "1.0.9",
-  "versionCode": 12,
-  "downloadUrl": "https://github.com/FurkanTahaBademci/BtKontrolRobomer/releases/download/v1.0.9/app-release.apk",
-  "releaseNotes": "🚀 Güncelleme v1.0.9\n\n✨ Yeni Özellikler:\n- Korna butonu eklendi (basılı tutunca çalar, bırakınca durur)\n\n🐛 Düzeltmeler ve İyileştirmeler:\n- BLE tarama tamamen yeniden yazıldı: daha hızlı (lowLatency mod), daha fazla cihaz bulunuyor (advName fallback), sistem seviyesinde bağlı cihazlar da listeleniyor\n- BLE'de tarama başlamadan önce konum servisi kontrolü eklendi (Xiaomi/Samsung vs.)\n- Bağlantı başarısız olduğunda detaylı hata dialogşu ve 'Tekrar Dene' butonu eklendi\n- Tarama süresi dolduğunda 'Cihaz Tara' butonu artık doğru sıfırlanıyor\n- Bağlantı hata mesajları cihaz tipine göre anlam lı gösteriliyor (Classic vs BLE)\n\n🧹 Kaldırılanlar:\n- Son bağlantılar listesi kaldırıldı\n\n🧠 Önceki Özellikler:\n- BLE ve Classic için 'latest command wins' yazma guardı (v1.0.8)\n- Açık/Koyu/Sistem tema desteği (v1.0.6)\n- Ekran yönlendirme kontrolü (v1.0.4)\n- Buton konumlandırma editörü (v1.0.3)",
+  "latestVersion": "1.0.10",
+  "versionCode": 13,
+  "downloadUrl": "https://github.com/FurkanTahaBademci/BtKontrolRobomer/releases/download/v1.0.10/app-release.apk",
+  "releaseNotes": "🚀 Güncelleme v1.0.10\n\n✨ Yeni Özellikler:\n- Classic BT'de eşlenmiş cihazların sinyal gücü (RSSI) artık görünüyor\n- Cihaz listeleniyor ama henüz taranmadıysa 'taranıyor...' göstergesi eklendi\n- Sinyal gücü dBm olarak gösteriliyor\n- Tarama tamamlanınca liste otomatik sıralanıyor: Son Bağlanan → Aktif (güçten zayıfa) → Kapsama Dışı\n- Son bağlanan cihaz 'Son Bağlanan' etiketi ile en üste sabitlendi (Classic ve BLE için)\n- Aktif cihazlar 'Aktif', kapsam dışı cihazlar 'Kapsama dışı' olarak etiketleniyor\n\n🐛 Düzeltmeler:\n- ConnectionHistoryProvider eksik provider kaydı hatası düzeltildi\n\n🧠 Önceki Özellikler:\n- Korna butonu (v1.0.9)\n- BLE tarama iyileştirmeleri (v1.0.9)\n- BLE ve Classic için 'latest command wins' yazma guardı (v1.0.8)\n- Açık/Koyu/Sistem tema desteği (v1.0.6)\n- Buton konumlandırma editörü (v1.0.3)",
   "minRequiredVersion": "1.0.0",
   "forceUpdate": false,
   "fileSize": "22 MB",
-  "releaseDate": "2026-03-28"
+  "releaseDate": "2026-04-05"
 }
