@@ -23,6 +23,10 @@ class BluetoothProvider with ChangeNotifier {
   bool _isScanning = false;
   String? _errorMessage;
 
+  // Gecikme optimizasyonu (SettingsProvider'dan ProxyProvider aracılığıyla beslenir)
+  String _commandTerminator = '';
+  bool _bleForceWriteWithoutResponse = false;
+
   // İstatistikler
   int _cmdSent = 0;
   int _cmdFailed = 0;
@@ -119,6 +123,8 @@ class BluetoothProvider with ChangeNotifier {
         );
         _connectedDevice = null;
       } else if (state == ConnectionState.connected) {
+        // Bağlantı kurulunca mevcut optimizasyon ayarlarını uygula
+        _controller?.setWriteWithoutResponseOverride(_bleForceWriteWithoutResponse);
         LogService.instance.success(
           'BT',
           'Bağlandı: ${_connectedDevice?.name ?? "?"}',
@@ -313,12 +319,43 @@ class BluetoothProvider with ChangeNotifier {
     }
   }
 
+  /// Gecikme optimizasyon ayarlarını güncelle (ChangeNotifierProxyProvider tarafından çağrılır)
+  void applyLatencySettings({
+    required String terminator,
+    required bool bleForceWriteWithoutResponse,
+  }) {
+    _commandTerminator = terminator;
+    if (_bleForceWriteWithoutResponse != bleForceWriteWithoutResponse) {
+      _bleForceWriteWithoutResponse = bleForceWriteWithoutResponse;
+      _controller?.setWriteWithoutResponseOverride(bleForceWriteWithoutResponse);
+    }
+  }
+
   /// Robot komut gönder
   Future<bool> sendRobotCommand(RobotCommand command) async {
     if (_controller == null || !isConnected) {
       return false;
     }
-    final result = await _controller!.sendCommand(command);
+    final bool result;
+    if (_commandTerminator.isEmpty) {
+      // Normal yol: en-iyi gecikme guard'lı sendCommand
+      result = await _controller!.sendCommand(command);
+    } else {
+      // Sonlandırıcı varsa: ham string olarak gönder (guard sendRawString'de)
+      result = await _controller!.sendRawString(command.value + _commandTerminator);
+    }
+    if (result) {
+      _cmdSent++;
+    } else {
+      _cmdFailed++;
+    }
+    return result;
+  }
+
+  /// Ham string gönder (özel bloklar için)
+  Future<bool> sendRawString(String data) async {
+    if (_controller == null || !isConnected) return false;
+    final result = await _controller!.sendRawString(data + _commandTerminator);
     if (result) {
       _cmdSent++;
     } else {

@@ -21,6 +21,13 @@ class BleBluetoothController implements BluetoothController {
   bool _isSending = false;
   RobotCommand? _nextCommand; // Gönderim devam ederken gelen en son komut
 
+  // sendRawString için ayrı guard
+  bool _isRawSending = false;
+  String? _nextRawData;
+
+  // Klon modül uyumu: write without response zorla
+  bool _writeWithoutResponseForced = false;
+
   final _devicesController =
       StreamController<List<BluetoothDeviceModel>>.broadcast();
   final _connectionStateController =
@@ -288,6 +295,8 @@ class BleBluetoothController implements BluetoothController {
     _isBleConnected = false;
     _isSending = false;
     _nextCommand = null;
+    _isRawSending = false;
+    _nextRawData = null;
     await _connectionSubscription?.cancel();
     _connectionSubscription = null;
 
@@ -322,9 +331,10 @@ class BleBluetoothController implements BluetoothController {
 
     _isSending = true;
     try {
+      final wwr = _writeWithoutResponseForced || _useWriteWithoutResponse;
       await _writeCharacteristic!.write(
         utf8.encode(command.value),
-        withoutResponse: _useWriteWithoutResponse,
+        withoutResponse: wwr,
       );
 
       // Gönderim tamamlandı: bekleyen komut var mı?
@@ -333,7 +343,7 @@ class BleBluetoothController implements BluetoothController {
         _nextCommand = null;
         await _writeCharacteristic!.write(
           utf8.encode(next.value),
-          withoutResponse: _useWriteWithoutResponse,
+          withoutResponse: wwr,
         );
       }
       return true;
@@ -356,7 +366,7 @@ class BleBluetoothController implements BluetoothController {
     try {
       await _writeCharacteristic!.write(
         utf8.encode(speedCommand.toCommandString()),
-        withoutResponse: _useWriteWithoutResponse,
+        withoutResponse: _writeWithoutResponseForced || _useWriteWithoutResponse,
       );
       return true;
     } catch (e) {
@@ -364,6 +374,42 @@ class BleBluetoothController implements BluetoothController {
     } finally {
       _isSending = false;
     }
+  }
+
+  @override
+  Future<bool> sendRawString(String data) async {
+    if (_writeCharacteristic == null || !_isBleConnected) return false;
+    if (_isRawSending) {
+      _nextRawData = data;
+      return true;
+    }
+    _isRawSending = true;
+    try {
+      final wwr = _writeWithoutResponseForced || _useWriteWithoutResponse;
+      await _writeCharacteristic!.write(
+        utf8.encode(data),
+        withoutResponse: wwr,
+      );
+      while (_nextRawData != null && _isBleConnected) {
+        final next = _nextRawData!;
+        _nextRawData = null;
+        await _writeCharacteristic!.write(
+          utf8.encode(next),
+          withoutResponse: wwr,
+        );
+      }
+      return true;
+    } catch (e) {
+      return false;
+    } finally {
+      _isRawSending = false;
+      _nextRawData = null;
+    }
+  }
+
+  @override
+  void setWriteWithoutResponseOverride(bool forced) {
+    _writeWithoutResponseForced = forced;
   }
 
   @override

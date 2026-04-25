@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:bt_kontrol_robomer/models/custom_block.dart';
 import 'package:bt_kontrol_robomer/providers/settings_provider.dart';
 
 /// Buton duzeni indeksleri (SettingsProvider.buttonPositions sirasi)
@@ -31,6 +32,8 @@ class ButtonLayoutEditorScreen extends StatefulWidget {
 class _ButtonLayoutEditorScreenState extends State<ButtonLayoutEditorScreen> {
   late List<Offset> _positions;
   int? _dragging;
+  Map<String, Offset> _customPositions = {};
+  String? _draggingCustom;
   Size _canvasSize = Size.zero;
 
   @override
@@ -39,6 +42,9 @@ class _ButtonLayoutEditorScreenState extends State<ButtonLayoutEditorScreen> {
     final settings = context.read<SettingsProvider>();
     _positions = List.of(settings.buttonPositions);
     _applyOrientation(settings.screenOrientation);
+    for (final block in settings.customBlocks) {
+      _customPositions[block.id] = block.position;
+    }
   }
 
   void _applyOrientation(ScreenOrientation orientation) {
@@ -92,8 +98,20 @@ class _ButtonLayoutEditorScreenState extends State<ButtonLayoutEditorScreen> {
     });
   }
 
+  void _onCustomDragUpdate(String id, DragUpdateDetails d) {
+    setState(() {
+      final current = _toPixel(_customPositions[id] ?? const Offset(0.5, 0.5));
+      final updated = current + d.delta;
+      _customPositions[id] = _toNorm(updated);
+    });
+  }
+
   Future<void> _save() async {
-    await context.read<SettingsProvider>().setButtonPositions(_positions);
+    final settings = context.read<SettingsProvider>();
+    await settings.setButtonPositions(_positions);
+    for (final entry in _customPositions.entries) {
+      await settings.setCustomBlockPosition(entry.key, entry.value);
+    }
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -131,6 +149,10 @@ class _ButtonLayoutEditorScreenState extends State<ButtonLayoutEditorScreen> {
 
                 // Korna butonu
                 _draggableSquareBtn(ButtonSlot.horn, btnSize, btnRadius),
+
+                // Özel bloklar
+                for (final block in settings.customBlocks)
+                  _draggableCustomBlock(block, btnSize, btnRadius),
 
                 // Overlay: geri + sifirla + kaydet
                 Positioned(
@@ -272,6 +294,44 @@ class _ButtonLayoutEditorScreenState extends State<ButtonLayoutEditorScreen> {
                 : null,
       ),
       child: child,
+    );
+  }
+
+  Widget _draggableCustomBlock(CustomBlock block, double size, double radius) {
+    final pos = _customPositions[block.id] ?? block.position;
+    final px = _toPixel(pos);
+    final dragging = _draggingCustom == block.id;
+    return Positioned(
+      left: px.dx - size / 2,
+      top: px.dy - size / 2,
+      child: GestureDetector(
+        onPanStart: (_) => setState(() => _draggingCustom = block.id),
+        onPanUpdate: (d) => _onCustomDragUpdate(block.id, d),
+        onPanEnd: (_) => setState(() => _draggingCustom = null),
+        child: _btnDecoration(
+          width: size,
+          height: size,
+          color: block.color,
+          radius: radius,
+          dragging: dragging,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.widgets, color: Colors.white, size: size * 0.38),
+              const SizedBox(height: 2),
+              Text(
+                block.name,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: size * 0.14,
+                  fontWeight: FontWeight.bold,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

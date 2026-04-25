@@ -22,6 +22,10 @@ class ClassicBluetoothController implements BluetoothController {
   bool _isSending = false;
   RobotCommand? _nextCommand; // Gönderim devam ederken gelen en son komut
 
+  // sendRawString için ayrı guard (command ve raw gönderimleri birbirini bloklamasın)
+  bool _isRawSending = false;
+  String? _nextRawData;
+
   final _devicesController =
       StreamController<List<BluetoothDeviceModel>>.broadcast();
   final _connectionStateController =
@@ -174,6 +178,8 @@ class ClassicBluetoothController implements BluetoothController {
 
     _isSending = false;
     _nextCommand = null;
+    _isRawSending = false;
+    _nextRawData = null;
 
     await _dataSubscription?.cancel();
     _dataSubscription = null;
@@ -243,6 +249,38 @@ class ClassicBluetoothController implements BluetoothController {
     } catch (e) {
       return false;
     }
+  }
+
+  @override
+  Future<bool> sendRawString(String data) async {
+    if (_connection == null || !_connection!.isConnected) return false;
+    if (_isRawSending) {
+      _nextRawData = data; // sadece en son komut tutulur
+      return true;
+    }
+    _isRawSending = true;
+    try {
+      _connection!.output.add(utf8.encode(data));
+      await _connection!.output.allSent;
+      while (_nextRawData != null) {
+        final next = _nextRawData!;
+        _nextRawData = null;
+        if (_connection == null || !_connection!.isConnected) break;
+        _connection!.output.add(utf8.encode(next));
+        await _connection!.output.allSent;
+      }
+      return true;
+    } catch (e) {
+      return false;
+    } finally {
+      _isRawSending = false;
+      _nextRawData = null;
+    }
+  }
+
+  @override
+  void setWriteWithoutResponseOverride(bool forced) {
+    // Classic Bluetooth write modu değiştirilemez — yoksayılır
   }
 
   @override

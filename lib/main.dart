@@ -29,9 +29,20 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => BluetoothProvider()),
+        // SettingsProvider önce tanımlanmalı — ProxyProvider buna bağlı
         ChangeNotifierProvider(
           create: (_) => SettingsProvider()..loadSettings(),
+        ),
+        ChangeNotifierProxyProvider<SettingsProvider, BluetoothProvider>(
+          create: (_) => BluetoothProvider(),
+          update: (_, settings, btProvider) {
+            btProvider!.applyLatencySettings(
+              terminator: settings.commandTerminator.value,
+              bleForceWriteWithoutResponse:
+                  settings.bleForceWriteWithoutResponse,
+            );
+            return btProvider;
+          },
         ),
         ChangeNotifierProvider(
           create: (_) => ConnectionHistoryProvider()..loadHistory(),

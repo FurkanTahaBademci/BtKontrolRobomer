@@ -7,9 +7,11 @@ import 'package:bt_kontrol_robomer/providers/settings_provider.dart';
 import 'package:bt_kontrol_robomer/providers/bluetooth_provider.dart';
 import 'package:bt_kontrol_robomer/services/update_service.dart';
 import 'package:bt_kontrol_robomer/models/version_info.dart';
+import 'package:bt_kontrol_robomer/models/custom_block.dart';
 import 'package:bt_kontrol_robomer/widgets/update_dialog.dart';
 import 'package:bt_kontrol_robomer/screens/button_layout_editor_screen.dart';
 import 'package:bt_kontrol_robomer/screens/developer_panel_screen.dart';
+import 'package:bt_kontrol_robomer/screens/custom_block_editor_screen.dart';
 
 /// Ayarlar ekranı
 class SettingsScreen extends StatefulWidget {
@@ -285,6 +287,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 16),
 
+          // Özel Bloklar
+          _buildSectionTitle('Özel Bloklar'),
+          _buildCustomBlocksSection(settingsProvider),
+          const SizedBox(height: 16),
+
           // Ekran Yönlendirme
           _buildSectionTitle('Ekran Yönlendirme'),
           Card(
@@ -415,6 +422,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
+          const SizedBox(height: 32),
+
+          // Bağlantı Optimizasyonu
+          _buildSectionTitle('Bağlantı Optimizasyonu'),
+          _buildConnectionOptimizationSection(settingsProvider),
           const SizedBox(height: 32),
 
           // Ayarları Sıfırla
@@ -701,6 +713,98 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _buildConnectionOptimizationSection(SettingsProvider settings) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Açıklama
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.secondaryContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.onSecondaryContainer,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Klon HC-05/HC-06 modülleri (BK3231, JDY-31 vb.) ile yaşanan gecikme sorunlarını gidermek için bu ayarları kullanın.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSecondaryContainer,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Komut Sonlandırıcı
+            const Text(
+              'Komut Sonlandırıcısı',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Her komutun sonuna eklenir. Arduino kodunuzda Serial.readStringUntil() kullanıyorsanız LF seçin.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 8),
+            ...CommandTerminator.values.map((t) {
+              return RadioListTile<CommandTerminator>(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                title: Text(t.displayName),
+                subtitle: Text(
+                  t.description,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                value: t,
+                groupValue: settings.commandTerminator,
+                onChanged: (v) {
+                  if (v != null) settings.setCommandTerminator(v);
+                },
+              );
+            }),
+
+            const Divider(height: 28),
+
+            // BLE Write Without Response
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('BLE Hızlı Yazım Modu'),
+              subtitle: const Text(
+                'Write Without Response zorla — klon JDY-31, AT-09 ve benzeri BLE modüllerde gecikmeyi büyük ölçüde azaltır.',
+              ),
+              secondary: Icon(
+                Icons.bolt,
+                color: settings.bleForceWriteWithoutResponse
+                    ? Colors.amber
+                    : null,
+              ),
+              value: settings.bleForceWriteWithoutResponse,
+              onChanged: (v) => settings.setBleForceWriteWithoutResponse(v),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 8),
@@ -714,6 +818,151 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
+
+  // ─── Özel Bloklar ──────────────────────────────────────────────────────────
+
+  Widget _buildCustomBlocksSection(SettingsProvider settingsProvider) {
+    final blocks = settingsProvider.customBlocks;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Kontrol ekranına özel butonlar ekleyin. Her buton için ayrı bir Bluetooth karakteri belirleyebilirsiniz.',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            if (blocks.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Column(
+                  children: [
+                    Icon(Icons.touch_app_outlined, size: 36, color: Colors.grey),
+                    SizedBox(height: 8),
+                    Text(
+                      'Henüz özel blok yok',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ],
+                ),
+              )
+            else
+              ...blocks.map((block) => _buildBlockListTile(block, settingsProvider)),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _openBlockEditor(null, settingsProvider),
+                icon: const Icon(Icons.add),
+                label: const Text('Yeni Blok Ekle'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBlockListTile(CustomBlock block, SettingsProvider settingsProvider) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant,
+        ),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        leading: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: block.color,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Icon(Icons.touch_app, color: Colors.white, size: 22),
+        ),
+        title: Text(
+          block.name,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(
+          'Bas: "${block.pressChar.isEmpty ? '-' : block.pressChar}"   Bırak: "${block.releaseChar.isEmpty ? '-' : block.releaseChar}"',
+          style: const TextStyle(fontSize: 12),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: 'Düzenle',
+              onPressed: () => _openBlockEditor(block, settingsProvider),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              tooltip: 'Sil',
+              onPressed: () => _confirmDeleteBlock(block, settingsProvider),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openBlockEditor(
+    CustomBlock? existingBlock,
+    SettingsProvider settingsProvider,
+  ) async {
+    final result = await Navigator.push<CustomBlock>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CustomBlockEditorScreen(block: existingBlock),
+      ),
+    );
+    if (result == null) return;
+    if (existingBlock == null) {
+      await settingsProvider.addCustomBlock(result);
+    } else {
+      await settingsProvider.updateCustomBlock(result);
+    }
+  }
+
+  Future<void> _confirmDeleteBlock(
+    CustomBlock block,
+    SettingsProvider settingsProvider,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Bloğu Sil'),
+        content: Text('"${block.name}" bloğunu silmek istiyor musunuz?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('İptal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Sil'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await settingsProvider.removeCustomBlock(block.id);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildButtonPreview(SettingsProvider settings) {
     final size = settings.buttonSize;

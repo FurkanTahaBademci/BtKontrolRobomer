@@ -5,6 +5,7 @@ import 'package:bt_kontrol_robomer/providers/bluetooth_provider.dart';
 import 'package:bt_kontrol_robomer/providers/settings_provider.dart';
 import 'package:bt_kontrol_robomer/core/bluetooth/models/robot_command.dart';
 import 'package:bt_kontrol_robomer/widgets/direction_button.dart';
+import 'package:bt_kontrol_robomer/widgets/custom_block_button.dart';
 import 'package:bt_kontrol_robomer/widgets/connection_status_indicator.dart';
 import 'package:bt_kontrol_robomer/screens/settings_screen.dart';
 
@@ -197,6 +198,7 @@ class _RobotControlScreenState extends State<RobotControlScreen> {
     final btnSize = settings.buttonSize;
     final btnRadius = settings.buttonRadius;
     final vibration = settings.vibrationEnabled;
+    final customBlocks = settings.customBlocks;
 
     Offset toPx(int idx) => Offset(
       positions[idx].dx * canvasSize.width,
@@ -283,6 +285,23 @@ class _RobotControlScreenState extends State<RobotControlScreen> {
             top: toPx(6).dy - btnSize / 2,
             child: _hornBtn(provider, vibration, btnSize, btnRadius),
           ),
+        // Özel bloklar
+        ...customBlocks.map((block) {
+          final px = block.position.dx * canvasSize.width;
+          final py = block.position.dy * canvasSize.height;
+          return Positioned(
+            left: px - btnSize / 2,
+            top: py - btnSize / 2,
+            child: CustomBlockButton(
+              block: block,
+              onPressChar: (c) => provider.sendRawString(c),
+              onReleaseChar: (c) => provider.sendRawString(c),
+              enableVibration: vibration,
+              size: btnSize,
+              borderRadius: btnRadius,
+            ),
+          );
+        }),
         // Bağlantı koptu banner (en üstte)
         if (!provider.isConnected)
           Positioned(

@@ -1,10 +1,10 @@
 {
-  "latestVersion": "1.0.11",
-  "versionCode": 14,
-  "downloadUrl": "https://github.com/FurkanTahaBademci/BtKontrolRobomer/releases/download/v1.0.11/app-release.apk",
-  "releaseNotes": "🐛 v1.0.11 — Hata Düzeltmeleri\n\n- Bağlantı hatalarında daha açıklayıcı mesajlar\n- Ayarlar ekranı açılınca bağlantının kesilmesi sorunu düzeltildi\n- Kontrol panelinden ayarlara geçişte ekran yönlendirme sorunu düzeltildi\n- Bağlı değilken ayarlar ekranına erişilince uygulama çökmesi giderildi\n- Genel kararlılık iyileştirmeleri",
+  "latestVersion": "1.0.12",
+  "versionCode": 15,
+  "downloadUrl": "https://github.com/FurkanTahaBademci/BtKontrolRobomer/releases/download/v1.0.12/app-release.apk",
+  "releaseNotes": "🐛 v1.0.12 — Hata Düzeltmeleri\n\n- Özel bloklar buton düzenleme ekranında artık görünüyor ve sürüklenebiliyor\n- Butona tıklayınca sağa/sola kayma (drift) sorunu düzeltildi\n- Genel kararlılık iyileştirmeleri",
   "minRequiredVersion": "1.0.0",
   "forceUpdate": false,
   "fileSize": "22 MB",
-  "releaseDate": "2026-04-05"
+  "releaseDate": "2026-04-25"
 }

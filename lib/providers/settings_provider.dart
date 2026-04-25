@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:bt_kontrol_robomer/models/custom_block.dart';
 
 /// Uygulama ayarlarını yöneten Provider
 class SettingsProvider with ChangeNotifier {
@@ -12,6 +13,9 @@ class SettingsProvider with ChangeNotifier {
   static const String _keyScreenOrientation = 'screen_orientation';
   static const String _keyThemeMode = 'theme_mode';
   static const String _keyButtonLayout = 'button_layout';
+  static const String _keyCustomBlocks = 'custom_blocks_v1';
+  static const String _keyCommandTerminator = 'command_terminator';
+  static const String _keyBleForceWriteWithoutResponse = 'ble_force_wwr';
 
   // Varsayılan buton pozisyonları (normalize: 0.0-1.0 ekran oranı)
   // [forward, backward, left, right, stop, speed, horn]
@@ -40,6 +44,13 @@ class SettingsProvider with ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
   List<Offset> _buttonPositions = List.of(_defaultButtonPositions);
 
+  // Özel bloklar
+  List<CustomBlock> _customBlocks = [];
+
+  // Bağlantı optimizasyonu
+  CommandTerminator _commandTerminator = CommandTerminator.none;
+  bool _bleForceWriteWithoutResponse = false;
+
   int get defaultSpeed => _defaultSpeed;
   bool get vibrationEnabled => _vibrationEnabled;
   CommandMode get commandMode => _commandMode;
@@ -48,6 +59,9 @@ class SettingsProvider with ChangeNotifier {
   double get buttonSpacing => _buttonSpacing;
   double get buttonRadius => _buttonRadius;
   ScreenOrientation get screenOrientation => _screenOrientation;
+  List<CustomBlock> get customBlocks => List.unmodifiable(_customBlocks);
+  CommandTerminator get commandTerminator => _commandTerminator;
+  bool get bleForceWriteWithoutResponse => _bleForceWriteWithoutResponse;
   ThemeMode get themeMode => _themeMode;
   List<Offset> get buttonPositions => List.unmodifiable(_buttonPositions);
   static List<Offset> get defaultButtonPositions =>
@@ -112,6 +126,22 @@ class SettingsProvider with ChangeNotifier {
           }
         }
       }
+
+      // Özel blokları yükle
+      final blocksRaw = prefs.getString(_keyCustomBlocks);
+      if (blocksRaw != null) {
+        _customBlocks = CustomBlock.decodeList(blocksRaw);
+      }
+
+      // Bağlantı optimizasyonu ayarları
+      final terminatorName =
+          prefs.getString(_keyCommandTerminator) ?? 'none';
+      _commandTerminator = CommandTerminator.values.firstWhere(
+        (t) => t.name == terminatorName,
+        orElse: () => CommandTerminator.none,
+      );
+      _bleForceWriteWithoutResponse =
+          prefs.getBool(_keyBleForceWriteWithoutResponse) ?? false;
 
       notifyListeners();
     } catch (e) {
@@ -234,6 +264,9 @@ class SettingsProvider with ChangeNotifier {
     _screenOrientation = ScreenOrientation.landscape;
     _themeMode = ThemeMode.system;
     _buttonPositions = List.of(_defaultButtonPositions);
+    _customBlocks = [];
+    _commandTerminator = CommandTerminator.none;
+    _bleForceWriteWithoutResponse = false;
     notifyListeners();
 
     try {
@@ -247,9 +280,70 @@ class SettingsProvider with ChangeNotifier {
       await prefs.remove(_keyScreenOrientation);
       await prefs.remove(_keyThemeMode);
       await prefs.remove(_keyButtonLayout);
+      await prefs.remove(_keyCustomBlocks);
+      await prefs.remove(_keyCommandTerminator);
+      await prefs.remove(_keyBleForceWriteWithoutResponse);
     } catch (e) {
       // Silme hatası sessizce işlenir
     }
+  }
+
+  // ─── Özel Blok CRUD ────────────────────────────────────────────────────────
+
+  /// Yeni özel blok ekle
+  Future<void> addCustomBlock(CustomBlock block) async {
+    _customBlocks.add(block);
+    notifyListeners();
+    await _saveCustomBlocks();
+  }
+
+  /// Özel bloğu güncelle
+  Future<void> updateCustomBlock(CustomBlock block) async {
+    final idx = _customBlocks.indexWhere((b) => b.id == block.id);
+    if (idx == -1) return;
+    _customBlocks[idx] = block;
+    notifyListeners();
+    await _saveCustomBlocks();
+  }
+
+  /// Özel bloğu sil
+  Future<void> removeCustomBlock(String id) async {
+    _customBlocks.removeWhere((b) => b.id == id);
+    notifyListeners();
+    await _saveCustomBlocks();
+  }
+
+  /// Özel bloğun pozisyonunu güncelle
+  Future<void> setCustomBlockPosition(String id, Offset position) async {
+    final block = _customBlocks.firstWhere((b) => b.id == id, orElse: () => throw StateError('Block not found'));
+    block.position = position;
+    notifyListeners();
+    await _saveCustomBlocks();
+  }
+
+  Future<void> setCommandTerminator(CommandTerminator t) async {
+    _commandTerminator = t;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyCommandTerminator, t.name);
+    } catch (e) {}
+  }
+
+  Future<void> setBleForceWriteWithoutResponse(bool value) async {
+    _bleForceWriteWithoutResponse = value;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_keyBleForceWriteWithoutResponse, value);
+    } catch (e) {}
+  }
+
+  Future<void> _saveCustomBlocks() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyCustomBlocks, CustomBlock.encodeList(_customBlocks));
+    } catch (e) {}
   }
 
   /// Geliştirici modunu aç/kapat (geçici - sadece runtime)
@@ -323,6 +417,45 @@ extension ScreenOrientationExtension on ScreenOrientation {
         return '🖥️';
       case ScreenOrientation.auto:
         return '🔄';
+    }
+  }
+}
+
+/// Komut sonlandırıcı karakter seçenekleri (klon modül uyumu)
+enum CommandTerminator { none, lf, crlf }
+
+extension CommandTerminatorExtension on CommandTerminator {
+  /// Arduino'ya gönderilecek gerçek karakter(ler)
+  String get value {
+    switch (this) {
+      case CommandTerminator.none:
+        return '';
+      case CommandTerminator.lf:
+        return '\n';
+      case CommandTerminator.crlf:
+        return '\r\n';
+    }
+  }
+
+  String get displayName {
+    switch (this) {
+      case CommandTerminator.none:
+        return 'Yok';
+      case CommandTerminator.lf:
+        return 'LF (\\n)';
+      case CommandTerminator.crlf:
+        return 'CRLF (\\r\\n)';
+    }
+  }
+
+  String get description {
+    switch (this) {
+      case CommandTerminator.none:
+        return 'Varsayılan — sonlandırıcı gönderilmez';
+      case CommandTerminator.lf:
+        return 'Serial.readStringUntil(\\n) kullanan Arduino kodları için';
+      case CommandTerminator.crlf:
+        return 'Windows tarzı satır sonu gerektiren sistemler için';
     }
   }
 }

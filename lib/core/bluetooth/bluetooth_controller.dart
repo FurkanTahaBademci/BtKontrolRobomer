@@ -36,6 +36,13 @@ abstract class BluetoothController {
   /// Hız komutu gönder (0-255)
   Future<bool> sendSpeedCommand(SpeedCommand speedCommand);
 
+  /// Ham string gönder (özel bloklar için)
+  Future<bool> sendRawString(String data);
+
+  /// BLE Write Without Response modunu zorla (klon modül uyumu için).
+  /// Classic BT için no-op'tur.
+  void setWriteWithoutResponseOverride(bool forced);
+
   /// Bluetooth etkin mi?
   Future<bool> isBluetoothEnabled();
 
