@@ -124,7 +124,9 @@ class BluetoothProvider with ChangeNotifier {
         _connectedDevice = null;
       } else if (state == ConnectionState.connected) {
         // Bağlantı kurulunca mevcut optimizasyon ayarlarını uygula
-        _controller?.setWriteWithoutResponseOverride(_bleForceWriteWithoutResponse);
+        _controller?.setWriteWithoutResponseOverride(
+          _bleForceWriteWithoutResponse,
+        );
         LogService.instance.success(
           'BT',
           'Bağlandı: ${_connectedDevice?.name ?? "?"}',
@@ -327,7 +329,9 @@ class BluetoothProvider with ChangeNotifier {
     _commandTerminator = terminator;
     if (_bleForceWriteWithoutResponse != bleForceWriteWithoutResponse) {
       _bleForceWriteWithoutResponse = bleForceWriteWithoutResponse;
-      _controller?.setWriteWithoutResponseOverride(bleForceWriteWithoutResponse);
+      _controller?.setWriteWithoutResponseOverride(
+        bleForceWriteWithoutResponse,
+      );
     }
   }
 
@@ -342,7 +346,9 @@ class BluetoothProvider with ChangeNotifier {
       result = await _controller!.sendCommand(command);
     } else {
       // Sonlandırıcı varsa: ham string olarak gönder (guard sendRawString'de)
-      result = await _controller!.sendRawString(command.value + _commandTerminator);
+      result = await _controller!.sendRawString(
+        command.value + _commandTerminator,
+      );
     }
     if (result) {
       _cmdSent++;
@@ -356,6 +362,21 @@ class BluetoothProvider with ChangeNotifier {
   Future<bool> sendRawString(String data) async {
     if (_controller == null || !isConnected) return false;
     final result = await _controller!.sendRawString(data + _commandTerminator);
+    if (result) {
+      _cmdSent++;
+    } else {
+      _cmdFailed++;
+    }
+    return result;
+  }
+
+  /// Joystick modu: sol ve sağ motor hızlarını gönder
+  /// left/right: -255 (tam geri) ile 255 (tam ileri)
+  /// Format: "J<sol>,<sag>\n"  örn: "J200,-150\n"
+  Future<bool> sendMotorSpeeds(int left, int right) async {
+    if (_controller == null || !isConnected) return false;
+    final data = 'J$left,$right\n';
+    final result = await _controller!.sendRawString(data);
     if (result) {
       _cmdSent++;
     } else {

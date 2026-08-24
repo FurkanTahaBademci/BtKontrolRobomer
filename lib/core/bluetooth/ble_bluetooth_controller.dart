@@ -366,7 +366,8 @@ class BleBluetoothController implements BluetoothController {
     try {
       await _writeCharacteristic!.write(
         utf8.encode(speedCommand.toCommandString()),
-        withoutResponse: _writeWithoutResponseForced || _useWriteWithoutResponse,
+        withoutResponse:
+            _writeWithoutResponseForced || _useWriteWithoutResponse,
       );
       return true;
     } catch (e) {

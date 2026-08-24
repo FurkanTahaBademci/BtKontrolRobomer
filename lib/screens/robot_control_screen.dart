@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +9,7 @@ import 'package:bt_kontrol_robomer/core/bluetooth/models/robot_command.dart';
 import 'package:bt_kontrol_robomer/widgets/direction_button.dart';
 import 'package:bt_kontrol_robomer/widgets/custom_block_button.dart';
 import 'package:bt_kontrol_robomer/widgets/connection_status_indicator.dart';
+import 'package:bt_kontrol_robomer/widgets/joystick_widget.dart';
 import 'package:bt_kontrol_robomer/screens/settings_screen.dart';
 
 /// Robot kontrol ekranı
@@ -18,9 +21,23 @@ class RobotControlScreen extends StatefulWidget {
 }
 
 class _RobotControlScreenState extends State<RobotControlScreen> {
+  // ── Joystick throttle ─────────────────────────────────────────────────────
+  Timer? _joystickTimer;
+  int _pendingLeft = 0;
+  int _pendingRight = 0;
+  bool _joystickDirty = false;
+
   @override
   void initState() {
     super.initState();
+
+    // Joystick komutlarını 50ms (20 Hz) aralıklarla gönder
+    _joystickTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
+      if (!mounted || !_joystickDirty) return;
+      final provider = context.read<BluetoothProvider>();
+      provider.sendMotorSpeeds(_pendingLeft, _pendingRight);
+      _joystickDirty = false;
+    });
 
     // Varsayılan hızı ayarla
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -60,6 +77,7 @@ class _RobotControlScreenState extends State<RobotControlScreen> {
 
   @override
   void dispose() {
+    _joystickTimer?.cancel();
     // Ekran yönlendirmesini serbest bırak
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
@@ -127,6 +145,10 @@ class _RobotControlScreenState extends State<RobotControlScreen> {
                 constraints.maxWidth,
                 constraints.maxHeight,
               );
+              final settings = context.watch<SettingsProvider>();
+              if (settings.joystickModeEnabled) {
+                return _buildJoystickLayout(bluetoothProvider, canvasSize);
+              }
               return _buildFreeLayout(bluetoothProvider, canvasSize);
             },
           ),
@@ -188,6 +210,129 @@ class _RobotControlScreenState extends State<RobotControlScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Joystick modunda kullanılan düzen
+  Widget _buildJoystickLayout(BluetoothProvider provider, Size canvasSize) {
+    final settings = context.watch<SettingsProvider>();
+    final vibration = settings.vibrationEnabled;
+    final btnSize = settings.buttonSize;
+    final btnRadius = settings.buttonRadius;
+    final customBlocks = settings.customBlocks;
+
+    // Joystick boyutu: sol panel (flex 6/10 = %60 genişlik) ve tam yükseklik içindeki max daire
+    final joystickSize = min(canvasSize.height, canvasSize.width * 0.60) *
+        settings.joystickSizePercent / 100.0;
+
+    return Stack(
+      children: [
+        Row(
+          children: [
+            // Sol: Joystick
+            Expanded(
+              flex: 6,
+              child: Center(
+                child: JoystickWidget(
+                  size: joystickSize,
+                  onChanged: (x, y) {
+                    // Arcade Drive: left = y-x, right = y+x  (-1.0..1.0 → -255..255)
+                    final leftPower = (y - x).clamp(-1.0, 1.0);
+                    final rightPower = (y + x).clamp(-1.0, 1.0);
+                    _pendingLeft = (leftPower * 255).round();
+                    _pendingRight = (rightPower * 255).round();
+                    _joystickDirty = true;
+                  },
+                  onReleased: () {
+                    _pendingLeft = 0;
+                    _pendingRight = 0;
+                    _joystickDirty = false;
+                    provider.sendMotorSpeeds(0, 0);
+                  },
+                ),
+              ),
+            ),
+            // Sağ: Hız göstergesi + Korna + Özel bloklar
+            Expanded(
+              flex: 4,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Hız göstergesi
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            'Hız',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onPrimaryContainer.withOpacity(0.7),
+                            ),
+                          ),
+                          Text(
+                            '${provider.currentSpeed}',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Korna butonu
+                    _hornBtn(provider, vibration, btnSize, btnRadius),
+                    // Özel bloklar (varsa, dikey sıralanır)
+                    if (customBlocks.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        alignment: WrapAlignment.center,
+                        children: customBlocks.map((block) {
+                          return CustomBlockButton(
+                            block: block,
+                            onPressChar: (c) => provider.sendRawString(c),
+                            onReleaseChar: (c) => provider.sendRawString(c),
+                            enableVibration: vibration,
+                            size: btnSize,
+                            borderRadius: btnRadius,
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        // Bağlantı koptu banner (en üstte)
+        if (!provider.isConnected)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: _buildConnectionLostBanner(provider),
+          ),
+      ],
     );
   }
 

@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 class CustomBlock {
   final String id;
   String name;
-  String pressChar;    // Butona basılınca gönderilecek karakter
-  String releaseChar;  // Buton bırakılınca gönderilecek karakter
-  Offset position;     // Normalize edilmiş ekran pozisyonu (0.0-1.0)
-  int colorValue;      // Color.value olarak renk
+  String pressChar; // Butona basılınca gönderilecek karakter
+  String releaseChar; // Buton bırakılınca gönderilecek karakter
+  Offset position; // Normalize edilmiş ekran pozisyonu (0.0-1.0)
+  int colorValue; // Color.value olarak renk
 
   CustomBlock({
     required this.id,

@@ -53,20 +53,21 @@ class _CustomBlockEditorScreenState extends State<CustomBlockEditorScreen> {
       return;
     }
 
-    final result = _isEditing
-        ? widget.block!.copyWith(
-            name: name,
-            pressChar: pressChar,
-            releaseChar: releaseChar,
-            colorValue: _selectedColorValue,
-          )
-        : CustomBlock(
-            id: DateTime.now().microsecondsSinceEpoch.toString(),
-            name: name,
-            pressChar: pressChar,
-            releaseChar: releaseChar,
-            colorValue: _selectedColorValue,
-          );
+    final result =
+        _isEditing
+            ? widget.block!.copyWith(
+              name: name,
+              pressChar: pressChar,
+              releaseChar: releaseChar,
+              colorValue: _selectedColorValue,
+            )
+            : CustomBlock(
+              id: DateTime.now().microsecondsSinceEpoch.toString(),
+              name: name,
+              pressChar: pressChar,
+              releaseChar: releaseChar,
+              colorValue: _selectedColorValue,
+            );
 
     Navigator.of(context).pop(result);
   }
@@ -190,9 +191,10 @@ class _CustomBlockEditorScreenState extends State<CustomBlockEditorScreen> {
   }
 
   Widget _buildPreview() {
-    final name = _nameController.text.trim().isEmpty
-        ? 'Örnek'
-        : _nameController.text.trim();
+    final name =
+        _nameController.text.trim().isEmpty
+            ? 'Örnek'
+            : _nameController.text.trim();
     final color = Color(_selectedColorValue);
     return Center(
       child: Column(
@@ -272,43 +274,50 @@ class _CustomBlockEditorScreenState extends State<CustomBlockEditorScreen> {
     return Wrap(
       spacing: 12,
       runSpacing: 12,
-      children: kBlockColors.map((color) {
-        final isSelected = color.value == _selectedColorValue;
-        return GestureDetector(
-          onTap: () => setState(() => _selectedColorValue = color.value),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-              border: isSelected
-                  ? Border.all(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      width: 3,
-                    )
-                  : null,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(isSelected ? 0.3 : 0.15),
-                  blurRadius: isSelected ? 8 : 4,
+      children:
+          kBlockColors.map((color) {
+            final isSelected = color.value == _selectedColorValue;
+            return GestureDetector(
+              onTap: () => setState(() => _selectedColorValue = color.value),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                  border:
+                      isSelected
+                          ? Border.all(
+                            color: Theme.of(context).colorScheme.onSurface,
+                            width: 3,
+                          )
+                          : null,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(isSelected ? 0.3 : 0.15),
+                      blurRadius: isSelected ? 8 : 4,
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: isSelected
-                ? const Icon(Icons.check, color: Colors.white, size: 22)
-                : null,
-          ),
-        );
-      }).toList(),
+                child:
+                    isSelected
+                        ? const Icon(Icons.check, color: Colors.white, size: 22)
+                        : null,
+              ),
+            );
+          }).toList(),
     );
   }
 
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey),
+      style: const TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.bold,
+        color: Colors.grey,
+      ),
     );
   }
 }

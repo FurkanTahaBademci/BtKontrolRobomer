@@ -42,17 +42,31 @@ void setup() {
 ```cpp
 void loop() {
   if (Serial.available() > 0) {
-    String command = Serial.readStringUntil('\\n');
+    String command = Serial.readStringUntil('\n');
     command.trim();
     
-    // Hız komutu kontrolü
+    // Hız komutu: V{0-255}
     if (command.startsWith("V")) {
       currentSpeed = command.substring(1).toInt();
       currentSpeed = constrain(currentSpeed, 0, 255);
       return;
     }
     
-    // Karakter uzunluğu kontrolü
+    // Joystick komutu: J{sol},{sag}  (-255 ile 255)
+    // Uygulama Arcade Drive ile hesaplar ve gönderir
+    if (command.startsWith("J")) {
+      String data = command.substring(1);
+      int commaIdx = data.indexOf(',');
+      if (commaIdx > 0) {
+        int leftVal  = data.substring(0, commaIdx).toInt();
+        int rightVal = data.substring(commaIdx + 1).toInt();
+        setMotorValue(MOTOR_A_PIN1, MOTOR_A_PIN2, MOTOR_A_SPEED, leftVal);
+        setMotorValue(MOTOR_B_PIN1, MOTOR_B_PIN2, MOTOR_B_SPEED, rightVal);
+      }
+      return;
+    }
+    
+    // Karakter uzunluğu kontrolü (basit/gelişmiş mod)
     if (command.length() != 1) return;
     
     char cmd = command.charAt(0);
@@ -191,6 +205,26 @@ void stopMotors() {
 }
 ```
 
+### Joystick Motor Fonksiyonu
+```cpp
+// val: -255 (tam geri) ile 255 (tam ileri)
+void setMotorValue(int pin1, int pin2, int speedPin, int val) {
+  if (val > 0) {
+    digitalWrite(pin1, HIGH);
+    digitalWrite(pin2, LOW);
+    analogWrite(speedPin, constrain(val, 0, 255));
+  } else if (val < 0) {
+    digitalWrite(pin1, LOW);
+    digitalWrite(pin2, HIGH);
+    analogWrite(speedPin, constrain(-val, 0, 255));
+  } else {
+    digitalWrite(pin1, LOW);
+    digitalWrite(pin2, LOW);
+    analogWrite(speedPin, 0);
+  }
+}
+```
+
 ## Komut Listesi
 
 ### Basit Mod (F/B/R/L/S)
@@ -199,7 +233,15 @@ void stopMotors() {
 - `R` - Sağa dön (sol motor ileri, sağ motor geri)
 - `L` - Sola dön (sağ motor ileri, sol motor geri)
 - `S` - Dur (her iki motor stop)
-- `V{hız}\\n` - Hız ayarla (0-255)
+- `V{hız}\n` - Hız ayarla (0-255)
+
+### Joystick Modu (Arcade Drive)
+- `J{sol},{sag}\n` - Sol ve sağ motor hızı (her biri -255 ile 255)
+  - Pozitif = ileri, Negatif = geri, 0 = dur
+  - Örn: `J200,-150\n` → sol motor ileri, sağ motor geri (sola dönüş)
+  - Örn: `J200,200\n` → düz ileri
+  - Örn: `J0,0\n` → dur
+  - Uygulama 50ms (20 Hz) aralıklarla gönderir
 
 ### Gelişmiş Mod (A-Z)
 - `A` - Sol motor ileri, sağ motor dur
@@ -213,10 +255,9 @@ void stopMotors() {
 ## Test Etme
 
 1. Arduino IDE'de bu kodu yükleyin
-2. Serial Monitor'ü açın (9600 baud)
-3. Önce hız ayarı gönderin: `V200` (Enter)
-4. Yön komutları gönderin: `F`, `B`, `L`, `R`, `S`
-5. Gelişmiş komutları deneyin: `A`, `C`, `G`, `I`, `Y`, `Z`
+2. Serial Monitor'ü açın (9600 baud, "Newline" sonlandırıcı seçili olsun)
+3. **Basit/Gelişmiş mod testi:** `V200` → `F` → `B` → `S`
+4. **Joystick modu testi:** `J200,200` (düz ileri) → `J200,-200` (sol dönüş) → `J0,0` (dur)
 
 ## Uygulama Ayarları
 
@@ -225,6 +266,9 @@ Flutter uygulamasında:
 2. "Komut Sistemi" bölümünde mod seçin:
    - **Basit Mod**: Temel 4 yön + dur (F/B/R/L/S)
    - **Gelişmiş Mod**: Detaylı motor kontrolü (A-Z)
+3. **Joystick Modu**: "Robot Kontrol" bölümünden açın/kapatın
+   - Joystick modu açıkken `J<sol>,<sag>\n` formatı kullanılır
+   - Joystick modu kapalıyken normal buton düzeni aktiftir
 
 ## Not
 

@@ -191,6 +191,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
               secondary: const Icon(Icons.vibration),
             ),
           ),
+          const SizedBox(height: 8),
+
+          // Joystick Modu
+          Card(
+            child: Column(
+              children: [
+                SwitchListTile(
+                  title: const Text('Joystick Modu'),
+                  subtitle: const Text(
+                    'Yön butonları yerine sanal joystick kullan',
+                  ),
+                  value: settingsProvider.joystickModeEnabled,
+                  onChanged: (value) {
+                    settingsProvider.setJoystickModeEnabled(value);
+                  },
+                  secondary: Icon(
+                    Icons.gamepad_outlined,
+                    color: settingsProvider.joystickModeEnabled
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
+                  ),
+                ),
+                if (settingsProvider.joystickModeEnabled) ...[
+                  const Divider(height: 1, indent: 16, endIndent: 16),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                    child: _buildSliderRow(
+                      icon: Icons.open_in_full,
+                      label: 'Joystick Boyutu',
+                      value: settingsProvider.joystickSizePercent,
+                      min: 50,
+                      max: 100,
+                      unit: '%',
+                      onChanged: (v) =>
+                          settingsProvider.setJoystickSizePercent(v),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
           const SizedBox(height: 16),
 
           // Buton Özelleştirme
@@ -740,9 +781,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       'Klon HC-05/HC-06 modülleri (BK3231, JDY-31 vb.) ile yaşanan gecikme sorunlarını gidermek için bu ayarları kullanın.',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSecondaryContainer,
+                        color:
+                            Theme.of(context).colorScheme.onSecondaryContainer,
                       ),
                     ),
                   ),
@@ -792,9 +832,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               secondary: Icon(
                 Icons.bolt,
-                color: settings.bleForceWriteWithoutResponse
-                    ? Colors.amber
-                    : null,
+                color:
+                    settings.bleForceWriteWithoutResponse ? Colors.amber : null,
               ),
               value: settings.bleForceWriteWithoutResponse,
               onChanged: (v) => settings.setBleForceWriteWithoutResponse(v),
@@ -844,7 +883,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 child: const Column(
                   children: [
-                    Icon(Icons.touch_app_outlined, size: 36, color: Colors.grey),
+                    Icon(
+                      Icons.touch_app_outlined,
+                      size: 36,
+                      color: Colors.grey,
+                    ),
                     SizedBox(height: 8),
                     Text(
                       'Henüz özel blok yok',
@@ -854,7 +897,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               )
             else
-              ...blocks.map((block) => _buildBlockListTile(block, settingsProvider)),
+              ...blocks.map(
+                (block) => _buildBlockListTile(block, settingsProvider),
+              ),
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
@@ -870,13 +915,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildBlockListTile(CustomBlock block, SettingsProvider settingsProvider) {
+  Widget _buildBlockListTile(
+    CustomBlock block,
+    SettingsProvider settingsProvider,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outlineVariant,
-        ),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
         borderRadius: BorderRadius.circular(10),
       ),
       child: ListTile(
@@ -941,21 +987,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Bloğu Sil'),
-        content: Text('"${block.name}" bloğunu silmek istiyor musunuz?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('İptal'),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('Bloğu Sil'),
+            content: Text('"${block.name}" bloğunu silmek istiyor musunuz?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('İptal'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Sil'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Sil'),
-          ),
-        ],
-      ),
     );
     if (confirmed == true) {
       await settingsProvider.removeCustomBlock(block.id);

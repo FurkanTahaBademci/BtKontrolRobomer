@@ -16,6 +16,8 @@ class SettingsProvider with ChangeNotifier {
   static const String _keyCustomBlocks = 'custom_blocks_v1';
   static const String _keyCommandTerminator = 'command_terminator';
   static const String _keyBleForceWriteWithoutResponse = 'ble_force_wwr';
+  static const String _keyJoystickMode = 'joystick_mode';
+  static const String _keyJoystickSizePercent = 'joystick_size_percent';
 
   // Varsayılan buton pozisyonları (normalize: 0.0-1.0 ekran oranı)
   // [forward, backward, left, right, stop, speed, horn]
@@ -51,6 +53,10 @@ class SettingsProvider with ChangeNotifier {
   CommandTerminator _commandTerminator = CommandTerminator.none;
   bool _bleForceWriteWithoutResponse = false;
 
+  // Joystick modu
+  bool _joystickModeEnabled = false;
+  double _joystickSizePercent = 100.0; // 50-100
+
   int get defaultSpeed => _defaultSpeed;
   bool get vibrationEnabled => _vibrationEnabled;
   CommandMode get commandMode => _commandMode;
@@ -62,6 +68,8 @@ class SettingsProvider with ChangeNotifier {
   List<CustomBlock> get customBlocks => List.unmodifiable(_customBlocks);
   CommandTerminator get commandTerminator => _commandTerminator;
   bool get bleForceWriteWithoutResponse => _bleForceWriteWithoutResponse;
+  bool get joystickModeEnabled => _joystickModeEnabled;
+  double get joystickSizePercent => _joystickSizePercent;
   ThemeMode get themeMode => _themeMode;
   List<Offset> get buttonPositions => List.unmodifiable(_buttonPositions);
   static List<Offset> get defaultButtonPositions =>
@@ -134,14 +142,17 @@ class SettingsProvider with ChangeNotifier {
       }
 
       // Bağlantı optimizasyonu ayarları
-      final terminatorName =
-          prefs.getString(_keyCommandTerminator) ?? 'none';
+      final terminatorName = prefs.getString(_keyCommandTerminator) ?? 'none';
       _commandTerminator = CommandTerminator.values.firstWhere(
         (t) => t.name == terminatorName,
         orElse: () => CommandTerminator.none,
       );
       _bleForceWriteWithoutResponse =
           prefs.getBool(_keyBleForceWriteWithoutResponse) ?? false;
+
+      _joystickModeEnabled = prefs.getBool(_keyJoystickMode) ?? false;
+      _joystickSizePercent =
+          prefs.getDouble(_keyJoystickSizePercent) ?? 100.0;
 
       notifyListeners();
     } catch (e) {
@@ -267,6 +278,8 @@ class SettingsProvider with ChangeNotifier {
     _customBlocks = [];
     _commandTerminator = CommandTerminator.none;
     _bleForceWriteWithoutResponse = false;
+    _joystickModeEnabled = false;
+    _joystickSizePercent = 100.0;
     notifyListeners();
 
     try {
@@ -283,6 +296,8 @@ class SettingsProvider with ChangeNotifier {
       await prefs.remove(_keyCustomBlocks);
       await prefs.remove(_keyCommandTerminator);
       await prefs.remove(_keyBleForceWriteWithoutResponse);
+      await prefs.remove(_keyJoystickMode);
+      await prefs.remove(_keyJoystickSizePercent);
     } catch (e) {
       // Silme hatası sessizce işlenir
     }
@@ -315,7 +330,10 @@ class SettingsProvider with ChangeNotifier {
 
   /// Özel bloğun pozisyonunu güncelle
   Future<void> setCustomBlockPosition(String id, Offset position) async {
-    final block = _customBlocks.firstWhere((b) => b.id == id, orElse: () => throw StateError('Block not found'));
+    final block = _customBlocks.firstWhere(
+      (b) => b.id == id,
+      orElse: () => throw StateError('Block not found'),
+    );
     block.position = position;
     notifyListeners();
     await _saveCustomBlocks();
@@ -339,10 +357,33 @@ class SettingsProvider with ChangeNotifier {
     } catch (e) {}
   }
 
+  /// Joystick boyutunu ayarla (50-100 %)
+  Future<void> setJoystickSizePercent(double percent) async {
+    _joystickSizePercent = percent.clamp(50.0, 100.0);
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(_keyJoystickSizePercent, _joystickSizePercent);
+    } catch (e) {}
+  }
+
+  /// Joystick modunu aç/kapat
+  Future<void> setJoystickModeEnabled(bool enabled) async {
+    _joystickModeEnabled = enabled;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_keyJoystickMode, enabled);
+    } catch (e) {}
+  }
+
   Future<void> _saveCustomBlocks() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_keyCustomBlocks, CustomBlock.encodeList(_customBlocks));
+      await prefs.setString(
+        _keyCustomBlocks,
+        CustomBlock.encodeList(_customBlocks),
+      );
     } catch (e) {}
   }
 

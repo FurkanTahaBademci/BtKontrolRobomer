@@ -1,8 +1,10 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:math' as math;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:bt_kontrol_robomer/models/custom_block.dart';
 import 'package:bt_kontrol_robomer/providers/settings_provider.dart';
+import 'package:bt_kontrol_robomer/widgets/joystick_widget.dart';
 
 /// Buton duzeni indeksleri (SettingsProvider.buttonPositions sirasi)
 enum ButtonSlot {
@@ -135,19 +137,22 @@ class _ButtonLayoutEditorScreenState extends State<ButtonLayoutEditorScreen> {
 
             return Stack(
               children: [
-                // Yon butonlari
-                for (final slot in [
-                  ButtonSlot.forward,
-                  ButtonSlot.backward,
-                  ButtonSlot.left,
-                  ButtonSlot.right,
-                ])
-                  _draggableSquareBtn(slot, btnSize, btnRadius),
+                if (settings.joystickModeEnabled) ...[
+                  // Joystick modu: yön butonları gizli, joystick önizlemesi göster
+                  _joystickPreview(settings),
+                ] else ...[
+                  // Normal mod: yön butonları
+                  for (final slot in [
+                    ButtonSlot.forward,
+                    ButtonSlot.backward,
+                    ButtonSlot.left,
+                    ButtonSlot.right,
+                  ])
+                    _draggableSquareBtn(slot, btnSize, btnRadius),
+                  _draggableSquareBtn(ButtonSlot.stop, btnSize, btnRadius),
+                ],
 
-                // DUR butonu (yon butonlariyla ayni boyut)
-                _draggableSquareBtn(ButtonSlot.stop, btnSize, btnRadius),
-
-                // Korna butonu
+                // Korna butonu (her iki modda da göster)
                 _draggableSquareBtn(ButtonSlot.horn, btnSize, btnRadius),
 
                 // Özel bloklar
@@ -221,6 +226,32 @@ class _ButtonLayoutEditorScreenState extends State<ButtonLayoutEditorScreen> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _joystickPreview(SettingsProvider settings) {
+    if (_canvasSize == Size.zero) return const SizedBox.shrink();
+    final maxSize = math.min(
+      _canvasSize.height,
+      _canvasSize.width * 0.60,
+    );
+    final size = maxSize * settings.joystickSizePercent / 100.0;
+    // Gerçek kontrol ekranındaki gibi solda ortalanmış (genişliğin %60'ı)
+    final centerX = _canvasSize.width * 0.3;
+    final centerY = _canvasSize.height * 0.5;
+    return Positioned(
+      left: centerX - size / 2,
+      top: centerY - size / 2,
+      child: IgnorePointer(
+        child: Opacity(
+          opacity: 0.55,
+          child: JoystickWidget(
+            size: size,
+            onChanged: (_, __) {},
+            onReleased: () {},
           ),
         ),
       ),
