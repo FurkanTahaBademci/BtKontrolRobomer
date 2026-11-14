@@ -62,9 +62,20 @@ flutter run
 
 ### 3. Arduino Kurulumu
 
+**Önerilen kod (v1.0.13+):** [`arduino/robot_kontrol/robot_kontrol.ino`](arduino/robot_kontrol/robot_kontrol.ino) — Arduino Nano, tüm komutlar (basit/gelişmiş mod, hız, joystick, ping) ve düşük gecikme.
+
+| HC-05 | Arduino Nano |
+|---|---|
+| TX | D8 |
+| RX | D4 |
+| VCC / GND | 5V / GND |
+
+- HC-05 D0/D1'de değil, D8/D4'te (SoftwareSerial): kod yüklerken modülü sökmeye gerek yok, Seri Monitör (115200) gelen komutları gösterir.
+- ⚠️ Komutları `Serial.readStringUntil('\n')` ile okumayın: uygulama tek karakterli komutları sonlandırıcısız gönderir, bu fonksiyon her komutta ~1 sn bekler ve hızlı bas-bırak komutlarını kaybeder. Aşağıdaki ve diğer `.md` dosyalarındaki eski örnekler bu yüzden önerilmez.
+
 Arduino kodunuzu güncellemek için `ARDUINO_GUNCELLEME.md` dosyasına bakın.
 
-**Hızlı Arduino Kodu (Hız Kontrolü ile):**
+**Eski örnek kod (Hız Kontrolü ile):**
 
 ```cpp
 #define SOL_MOTOR1 5   

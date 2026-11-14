@@ -7,6 +7,7 @@ import 'package:bt_kontrol_robomer/core/bluetooth/models/connection_state.dart'
     as app_state;
 import 'package:bt_kontrol_robomer/core/bluetooth/models/robot_command.dart';
 import 'package:bt_kontrol_robomer/core/constants/bluetooth_constants.dart';
+import 'package:bt_kontrol_robomer/services/log_service.dart';
 
 /// BLE Bluetooth implementasyonu
 class BleBluetoothController implements BluetoothController {
@@ -20,6 +21,15 @@ class BleBluetoothController implements BluetoothController {
   // in-flight iken gelen komutları kuyruğa değil _nextCommand'e yaz
   bool _isSending = false;
   RobotCommand? _nextCommand; // Gönderim devam ederken gelen en son komut
+  SpeedCommand? _nextSpeed; // Gönderim devam ederken gelen en son hız
+
+  // Her connect/disconnect'te artar; gecikmeli işler (ör. 2 sn sonra
+  // connection priority tekrar isteği) eski bağlantıya uygulanmasın diye.
+  int _connectionGeneration = 0;
+
+  // Robottan gelen veri (FFE1 notify)
+  final _incomingController = StreamController<List<int>>.broadcast();
+  StreamSubscription<List<int>>? _notifySubscription;
 
   // sendRawString için ayrı guard
   bool _isRawSending = false;
@@ -48,6 +58,9 @@ class BleBluetoothController implements BluetoothController {
   @override
   Stream<app_state.ConnectionState> get connectionStateStream =>
       _connectionStateController.stream;
+
+  @override
+  Stream<List<int>> get incomingDataStream => _incomingController.stream;
 
   @override
   app_state.ConnectionState get currentConnectionState => _currentState;
@@ -198,8 +211,10 @@ class BleBluetoothController implements BluetoothController {
       }
 
       _connectedBleDevice = targetDevice;
+      final generation = ++_connectionGeneration;
 
       // Bağlantı durumu değişikliklerini dinle
+      await _connectionSubscription?.cancel();
       _connectionSubscription = _connectedBleDevice!.connectionState.listen((
         state,
       ) {
@@ -219,15 +234,10 @@ class BleBluetoothController implements BluetoothController {
       // Bağlantı stabilitesi için kısa bekleme
       await Future.delayed(const Duration(milliseconds: 400));
 
-      // Connection priority HIGH yap (düşük latency)
-      try {
-        await _connectedBleDevice!.requestConnectionPriority(
-          connectionPriorityRequest: ConnectionPriority.high,
-        );
-        await Future.delayed(const Duration(milliseconds: 300));
-      } catch (e) {
-        // Priority ayarlama hatası sessizce işlenir
-      }
+      // Connection priority HIGH yap (düşük latency) — service discovery'yi
+      // de hızlandırır. Discovery/MTU sonrası ve ~2 sn sonra tekrar istenir.
+      await _requestHighPriority(generation, 'bağlantı sonrası');
+      await Future.delayed(const Duration(milliseconds: 300));
 
       // Service discovery
       List<BluetoothService> services =
@@ -264,10 +274,6 @@ class BleBluetoothController implements BluetoothController {
       }
 
       if (_writeCharacteristic != null) {
-        _connectedDevice = device;
-        _isBleConnected = true;
-        _updateConnectionState(app_state.ConnectionState.connected);
-
         // writeWithoutResponse destekleniyorsa zorla kullan
         // (ATT ack beklenmez → gecikme sıfıra düşer)
         _useWriteWithoutResponse =
@@ -276,7 +282,29 @@ class BleBluetoothController implements BluetoothController {
         // MTU negotiate et (Android default 23 byte, daha büyük yazmalar için)
         try {
           await _connectedBleDevice!.requestMtu(128);
-        } catch (_) {}
+        } catch (e) {
+          LogService.instance.warn('BLE', 'MTU isteği başarısız: $e');
+        }
+
+        // Discovery + MTU sonrası priority'yi tekrar iste: bazı modüller
+        // bu aşamada kendi (uzun) connection interval'larını dayatıyor.
+        await _requestHighPriority(generation, 'discovery+MTU sonrası');
+
+        // Notify/indicate destekleniyorsa robottan gelen veriyi dinle
+        await _enableNotifications(_writeCharacteristic!);
+
+        _connectedDevice = device;
+        _isBleConnected = true;
+        _updateConnectionState(app_state.ConnectionState.connected);
+
+        // Peripheral'lar genelde bağlantıdan birkaç sn sonra kendi
+        // connection-parameter update isteğini gönderir → ~2 sn sonra
+        // HIGH priority'yi bir kez daha iste (connect() dönüşünü bloklamaz).
+        unawaited(
+          Future<void>.delayed(
+            const Duration(seconds: 2),
+          ).then((_) => _requestHighPriority(generation, '2 sn sonra')),
+        );
 
         return true;
       } else {
@@ -290,15 +318,67 @@ class BleBluetoothController implements BluetoothController {
     }
   }
 
+  /// HIGH connection priority iste. [generation] eski bir bağlantıya aitse
+  /// veya cihaz bu arada koptuysa hiçbir şey yapmaz.
+  Future<void> _requestHighPriority(int generation, String stage) async {
+    final dev = _connectedBleDevice;
+    if (dev == null ||
+        generation != _connectionGeneration ||
+        !dev.isConnected) {
+      return;
+    }
+    try {
+      await dev.requestConnectionPriority(
+        connectionPriorityRequest: ConnectionPriority.high,
+      );
+      LogService.instance.info(
+        'BLE',
+        'ConnectionPriority.high istendi ($stage)',
+      );
+    } catch (e) {
+      LogService.instance.warn(
+        'BLE',
+        'ConnectionPriority.high isteği başarısız ($stage): $e',
+      );
+    }
+  }
+
+  /// Karakteristik notify/indicate destekliyorsa aboneliği aç ve gelen
+  /// veriyi [incomingDataStream]'e aktar.
+  Future<void> _enableNotifications(BluetoothCharacteristic c) async {
+    await _notifySubscription?.cancel();
+    _notifySubscription = null;
+    if (!c.properties.notify && !c.properties.indicate) {
+      LogService.instance.warn(
+        'BLE',
+        'Karakteristik notify/indicate desteklemiyor — robottan veri alınamaz',
+      );
+      return;
+    }
+    try {
+      _notifySubscription = c.onValueReceived.listen((value) {
+        if (!_incomingController.isClosed) _incomingController.add(value);
+      });
+      await c.setNotifyValue(true);
+      LogService.instance.info('BLE', 'Notify aboneliği açıldı (${c.uuid})');
+    } catch (e) {
+      LogService.instance.warn('BLE', 'Notify aboneliği açılamadı: $e');
+    }
+  }
+
   @override
   Future<void> disconnect() async {
+    _connectionGeneration++;
     _isBleConnected = false;
     _isSending = false;
     _nextCommand = null;
+    _nextSpeed = null;
     _isRawSending = false;
     _nextRawData = null;
     await _connectionSubscription?.cancel();
     _connectionSubscription = null;
+    await _notifySubscription?.cancel();
+    _notifySubscription = null;
 
     if (_connectedBleDevice != null) {
       try {
@@ -337,21 +417,37 @@ class BleBluetoothController implements BluetoothController {
         withoutResponse: wwr,
       );
 
-      // Gönderim tamamlandı: bekleyen komut var mı?
-      while (_nextCommand != null && _isBleConnected) {
-        final next = _nextCommand!;
-        _nextCommand = null;
-        await _writeCharacteristic!.write(
-          utf8.encode(next.value),
-          withoutResponse: wwr,
-        );
-      }
+      // Gönderim tamamlandı: bekleyen hız/komut var mı?
+      await _flushPending(wwr);
       return true;
     } catch (e) {
       return false;
     } finally {
       _isSending = false;
       _nextCommand = null;
+      _nextSpeed = null;
+    }
+  }
+
+  /// _isSending sırasında biriken en son hız ve yön komutlarını gönder.
+  /// Hız önce gider ki ardından gelen yön komutu yeni hızla uygulansın.
+  Future<void> _flushPending(bool wwr) async {
+    while ((_nextSpeed != null || _nextCommand != null) && _isBleConnected) {
+      final speed = _nextSpeed;
+      _nextSpeed = null;
+      if (speed != null) {
+        await _writeCharacteristic!.write(
+          utf8.encode(speed.toCommandString()),
+          withoutResponse: wwr,
+        );
+        continue; // arada yeni hız gelmiş olabilir; döngü tekrar kontrol eder
+      }
+      final next = _nextCommand!;
+      _nextCommand = null;
+      await _writeCharacteristic!.write(
+        utf8.encode(next.value),
+        withoutResponse: wwr,
+      );
     }
   }
 
@@ -359,21 +455,29 @@ class BleBluetoothController implements BluetoothController {
   Future<bool> sendSpeedCommand(SpeedCommand speedCommand) async {
     if (_writeCharacteristic == null || !_isBleConnected) return false;
 
-    // Hız komutu: gönderim devam ediyorsa beklemeden dön (tek baytlık değil, önemli)
-    if (_isSending) return false;
+    if (_isSending) {
+      // Gönderim devam ediyor: en son hızı sakla, mevcut yazma bitince
+      // gönderilir ("latest wins" — slider ara değerleri atlanır, son değer
+      // kaybolmaz).
+      _nextSpeed = speedCommand;
+      return true;
+    }
 
     _isSending = true;
     try {
+      final wwr = _writeWithoutResponseForced || _useWriteWithoutResponse;
       await _writeCharacteristic!.write(
         utf8.encode(speedCommand.toCommandString()),
-        withoutResponse:
-            _writeWithoutResponseForced || _useWriteWithoutResponse,
+        withoutResponse: wwr,
       );
+      await _flushPending(wwr);
       return true;
     } catch (e) {
       return false;
     } finally {
       _isSending = false;
+      _nextCommand = null;
+      _nextSpeed = null;
     }
   }
 
@@ -439,6 +543,7 @@ class BleBluetoothController implements BluetoothController {
     disconnect();
     _devicesController.close();
     _connectionStateController.close();
+    _incomingController.close();
   }
 
   void _updateConnectionState(app_state.ConnectionState newState) {

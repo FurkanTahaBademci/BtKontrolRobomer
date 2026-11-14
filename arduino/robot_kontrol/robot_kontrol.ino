@@ -1,75 +1,206 @@
 // ============================================================
 //  Mucit Akademisi – BT Kontrol Robomer
-//  Arduino Motor Kontrol Kodu
+//  Arduino Nano Motor Kontrol Kodu  (v2 – düşük gecikme)
 //
-//  Desteklenen protokoller:
-//    Basit Mod  : F / B / R / L / S
-//    Gelişmiş Mod: A / C / G / I / X / Y / Z
-//    Hız        : V{0-255}\n
-//    Joystick   : J{sol},{sag}\n   (değerler: -255 .. 255)
+//  Desteklenen komutlar (uygulama → robot):
+//    Basit Mod   : F / B / R / L / S        (tek karakter, sonlandırıcı YOK)
+//    Gelişmiş Mod: A / C / G / I / X / Y / Z (tek karakter)
+//    Korna       : H (aç) / N (kapat)
+//    Hız         : V{0-255}\n               örn. "V150\n"
+//    Joystick    : J{sol},{sag}\n           örn. "J200,-150\n"  (-255..255)
+//    Ping        : P  → robot hemen "P\r\n" cevabı yollar (gecikme testi)
+//
+//  ── Bu sürümde neden değişiklik yapıldı? ──────────────────────
+//  1) GECİKME: Eski kod komutları Serial.readStringUntil('\n') ile
+//     okuyordu. Uygulama F/B/S gibi tek karakterli komutları '\n'
+//     OLMADAN gönderiyor. readStringUntil '\n' gelmeyince Serial
+//     timeout süresini (varsayılan 1000 ms) bekliyor. Sonuç: her tuş
+//     komutu robota ~1 saniye geç uygulanıyordu (ölçülen: ~1010 ms).
+//  2) KAYBOLAN KOMUTLAR: Bu 1 saniye içinde "F" ve ardından "S"
+//     gelirse ikisi "FS" diye birleşiyor, uzunluğu 1 olmadığı için
+//     tamamen yok sayılıyordu. Kısa dokunuşlar robotu hiç oynatmıyordu.
+//  ÇÖZÜM: Veri artık bayt bayt okunuyor. Tek karakterli komut geldiği
+//     anda uygulanıyor (ölçülen: ~6 ms). Sadece çok karakterli V ve J
+//     komutları '\n' gelene kadar tamponda biriktiriliyor.
+//
+//  3) PİNLER: HC-05 artık D0/D1 yerine D8/D4'e bağlı (SoftwareSerial).
+//     D0/D1 USB ile ortak olduğu için eskiden kod yüklerken HC-05'i
+//     sökmek gerekiyordu, yoksa yükleme "not in sync" hatası veriyordu.
+//     Artık USB portu boşta: kablo sökmeden kod yüklenebiliyor ve
+//     PC'den Seri Monitör (115200) ile gelen komutlar canlı izlenebiliyor.
 // ============================================================
 
-// ── Pin Tanımları ────────────────────────────────────────────
-// Motor A (Sol motor) — her iki pin PWM, ayrı enable yok
-const int MOTOR_A_PIN1 = 9;    // İleri yönü (PWM)
-const int MOTOR_A_PIN2 = 10;   // Geri yönü  (PWM)
+#include <SoftwareSerial.h>
 
-// Motor B (Sağ motor) — her iki pin PWM, ayrı enable yok
-const int MOTOR_B_PIN1 = 5;    // İleri yönü (PWM)
-const int MOTOR_B_PIN2 = 6;    // Geri yönü  (PWM)
+// ── Motor Pinleri ────────────────────────────────────────────
+// Motor sürücüde ayrı "enable" pini yok; her motorun iki girişi de
+// PWM pinine bağlı. Bir pine PWM verilip diğeri 0 yapılarak yön ve
+// hız aynı anda ayarlanıyor.
+const int MOTOR_A_PIN1 = 9;    // Sol motor ileri (PWM)
+const int MOTOR_A_PIN2 = 10;   // Sol motor geri  (PWM)
+const int MOTOR_B_PIN1 = 5;    // Sağ motor ileri (PWM)
+const int MOTOR_B_PIN2 = 6;    // Sağ motor geri  (PWM)
+
+// ── Bluetooth Modülü Bağlantısı ──────────────────────────────
+//   HC-05 TX  →  Arduino D8   (Arduino bu pinden OKUR)
+//   HC-05 RX  →  Arduino D4   (Arduino bu pinden YAZAR)
+//   Dikkat: TX ve RX çapraz bağlanır. Ters takılırsa telefondan
+//   gelen hiçbir komut robota ulaşmaz.
+const int BT_RX_PIN = 8;
+const int BT_TX_PIN = 4;
+const long BT_BAUD  = 9600;     // HC-05 fabrika ayarı (AT+UART? → 9600)
+const long USB_BAUD = 115200;   // PC Seri Monitör hızı (log ve test için)
+SoftwareSerial bt(BT_RX_PIN, BT_TX_PIN);
+
+// ── Ayar Anahtarları ─────────────────────────────────────────
+// LOG_ENABLED 1: İşlenen her komut USB'ye "<ms> <kaynak> <komut>"
+//   şeklinde yazılır. Kaynak: B = Bluetooth, U = USB.
+//   Robot PC'ye bağlı değilken de zararsızdır, kapatmaya gerek yok.
+#ifndef LOG_ENABLED
+#define LOG_ENABLED 1
+#endif
+// ACK_DEBUG 1: Her komuttan sonra komutun geldiği kanala "K<komut>"
+//   yazılır. Sadece test içindir, normal kullanımda 0 kalmalı.
+#ifndef ACK_DEBUG
+#define ACK_DEBUG 0
+#endif
 
 // ── Değişkenler ──────────────────────────────────────────────
-int currentSpeed = 150;         // Basit/Gelişmiş mod hızı (0-255)
+int currentSpeed = 150;   // Basit ve gelişmiş mod hızı (0-255), V komutu değiştirir
+
+// V ve J komutları birden fazla karakterden oluşur ve '\n' ile biter.
+// '\n' gelene kadar karakterler burada biriktirilir. Bluetooth ve USB
+// aynı anda veri gönderebileceği için her kanalın ayrı tamponu var;
+// böylece iki kanalın karakterleri birbirine karışmaz.
+struct LineReader {
+  char buf[24];     // "J-255,-255" en fazla 10 karakter; 24 yeterince geniş
+  uint8_t len;      // Tamponda şu an kaç karakter var (0 = boş)
+};
+LineReader btReader  = {{0}, 0};
+LineReader usbReader = {{0}, 0};
 
 // ============================================================
 void setup() {
-  Serial.begin(9600);           // HC-05 / HC-06 için 9600
-  // Serial.begin(115200);      // ESP32 BLE için 115200
+  Serial.begin(USB_BAUD);   // USB: log ve PC'den test
+  bt.begin(BT_BAUD);        // Bluetooth modülü
 
   pinMode(MOTOR_A_PIN1, OUTPUT);
   pinMode(MOTOR_A_PIN2, OUTPUT);
   pinMode(MOTOR_B_PIN1, OUTPUT);
   pinMode(MOTOR_B_PIN2, OUTPUT);
 
-  stopMotors();
+  stopMotors();             // Açılışta motorlar kesinlikle dursun
+#if LOG_ENABLED
+  Serial.println(F("# Robomer hazir (BT: RX=D8 TX=D4 9600)"));
+#endif
 }
 
 // ============================================================
+//  Ana döngü: loop() içinde HİÇ bekleme (delay, readString,
+//  readStringUntil, parseInt) yok. Gelen her bayt hemen işlenir.
+//  Gecikmenin asıl kaynağı bu tür bekleyen fonksiyonlardı.
+// ============================================================
 void loop() {
-  if (Serial.available() > 0) {
-    String cmd = Serial.readStringUntil('\n');
-    cmd.trim();
-    if (cmd.length() == 0) return;
+  while (bt.available() > 0)     feed(btReader,  (char)bt.read(),     bt,     'B');
+  while (Serial.available() > 0) feed(usbReader, (char)Serial.read(), Serial, 'U');
+}
 
-    // ── Hız komutu: V{0-255} ─────────────────────────────────
-    if (cmd.startsWith("V")) {
-      currentSpeed = constrain(cmd.substring(1).toInt(), 0, 255);
-      return;
+// ============================================================
+//  Bir kanaldan gelen TEK baytı işler.
+//    r   : o kanalın V/J tamponu
+//    c   : gelen karakter
+//    src : cevap yazılacak kanal (ping için)
+//    tag : log etiketi ('B' veya 'U')
+// ============================================================
+void feed(LineReader &r, char c, Stream &src, char tag) {
+  // Bazı uygulama ve terminal ayarları satır sonuna '\r' ekler; yok say.
+  if (c == '\r') return;
+
+  // '\n' = çok karakterli komutun sonu. Tamponda V/J komutu varsa uygula.
+  // Tampon boşken gelen '\n' (örn. "F\n" gönderen eski ayarlar) zararsızca
+  // yok sayılır.
+  if (c == '\n') {
+    if (r.len > 0) {
+      r.buf[r.len] = '\0';
+      handleLine(r.buf);
+      report(src, tag, r.buf);
+      r.len = 0;
     }
+    return;
+  }
 
-    // ── Joystick komutu: J{sol},{sag} ────────────────────────
-    //    sol / sag: -255 (tam geri) .. 255 (tam ileri)
-    //    Flutter tarafı Arcade Drive ile hesaplayıp gönderir
-    if (cmd.startsWith("J")) {
-      String data = cmd.substring(1);
-      int comma = data.indexOf(',');
-      if (comma > 0) {
-        int leftVal  = data.substring(0, comma).toInt();
-        int rightVal = data.substring(comma + 1).toInt();
-        setMotorValue(MOTOR_A_PIN1, MOTOR_A_PIN2, leftVal);
-        setMotorValue(MOTOR_B_PIN1, MOTOR_B_PIN2, rightVal);
-      }
-      return;
+  // Tampon boş: bu karakter yeni bir komutun ilk karakteri.
+  if (r.len == 0) {
+    if (c == 'V' || c == 'J') {
+      // Çok karakterli komut başlıyor: '\n' gelene kadar biriktir.
+      r.buf[r.len++] = c;
+    } else if (c == 'P') {
+      // Ping: uygulamanın gecikme testi 'P' gönderip bu cevabı bekler.
+      // Gidiş-dönüş süresi telefon → BT → robot → BT → telefon yolunu ölçer.
+      src.print(F("P\r\n"));
+      report(src, tag, "P");
+    } else if (c != ' ') {
+      // Tek karakterli komut: hiç beklemeden HEMEN uygula.
+      // Eski koddaki 1 saniyelik gecikme bu sayede ortadan kalktı.
+      processCommand(c);
+      char one[2] = {c, '\0'};
+      report(src, tag, one);
     }
+    return;
+  }
 
-    // ── Basit / Gelişmiş mod (tek karakter) ──────────────────
-    if (cmd.length() != 1) return;
-    processCommand(cmd.charAt(0));
+  // Buraya gelindiyse V/J komutunun devam karakteri bekleniyor.
+  if (r.len < sizeof(r.buf) - 1) {
+    r.buf[r.len++] = c;
+  } else {
+    // Tampon taştı ('\n' hiç gelmedi, veri bozuk). Tamponu boşalt ki
+    // sonraki komutlar takılmasın.
+    r.len = 0;
   }
 }
 
 // ============================================================
-//  Tek karakter komutlarını işle
+//  İşlenen komutu USB'ye logla (ve testte ACK gönder).
+// ============================================================
+void report(Stream &src, char tag, const char *cmd) {
+#if LOG_ENABLED
+  Serial.print(millis()); Serial.print(' ');
+  Serial.print(tag);      Serial.print(' ');
+  Serial.println(cmd);
+#endif
+#if ACK_DEBUG
+  src.print('K'); src.println(cmd);
+#else
+  (void)src; (void)tag; (void)cmd;   // Kullanılmayan parametre uyarısını sustur
+#endif
+}
+
+// ============================================================
+//  Çok karakterli komutlar:  V{0-255}  veya  J{sol},{sag}
+//  (Eskiden String sınıfı kullanılıyordu. String her komutta bellek
+//  ayırıp bıraktığı için 2 KB RAM'li Nano'da uzun kullanımda belleği
+//  parçalayabilir. Sabit boyutlu char dizisi ve atoi bu riski taşımaz.)
+// ============================================================
+void handleLine(char *line) {
+  // ── Hız: V{0-255} → basit/gelişmiş mod hızını ayarla ──────
+  if (line[0] == 'V') {
+    currentSpeed = constrain(atoi(line + 1), 0, 255);
+  }
+  // ── Joystick: J{sol},{sag} → iki motora doğrudan hız ver ──
+  //    Değerler -255 (tam geri) .. 255 (tam ileri). Uygulama joystick
+  //    konumundan bu değerleri hesaplayıp gönderir (Arcade Drive).
+  else if (line[0] == 'J') {
+    char *comma = strchr(line + 1, ',');
+    if (comma == NULL) return;          // Virgül yoksa komut bozuk, yok say
+    int leftVal  = atoi(line + 1);
+    int rightVal = atoi(comma + 1);
+    setMotorValue(MOTOR_A_PIN1, MOTOR_A_PIN2, leftVal);
+    setMotorValue(MOTOR_B_PIN1, MOTOR_B_PIN2, rightVal);
+  }
+}
+
+// ============================================================
+//  Tek karakterli komutlar (butonlar ve özel bloklar)
 // ============================================================
 void processCommand(char c) {
   switch (c) {
@@ -95,7 +226,7 @@ void processCommand(char c) {
       setMotorValue(MOTOR_B_PIN1, MOTOR_B_PIN2,  currentSpeed);
       break;
 
-    case 'S':   // Dur
+    case 'S':   // Dur (uygulama buton bırakılınca gönderir)
       stopMotors();
       break;
 
@@ -135,7 +266,8 @@ void processCommand(char c) {
       setMotorValue(MOTOR_B_PIN1, MOTOR_B_PIN2, (int)(currentSpeed * 0.6));
       break;
 
-    case 'H':   // Korna aç (opsiyonel buzzer)
+    // ── Aksesuar ─────────────────────────────────────────────
+    case 'H':   // Korna aç (buzzer takılıysa satırın yorumunu kaldırın)
       // tone(BUZZER_PIN, 1000);
       break;
 
@@ -143,6 +275,8 @@ void processCommand(char c) {
       // noTone(BUZZER_PIN);
       break;
 
+    // ── Bilinmeyen komut ─────────────────────────────────────
+    // Güvenlik için: tanınmayan her karakterde motorları durdur.
     default:
       stopMotors();
       break;
@@ -150,8 +284,10 @@ void processCommand(char c) {
 }
 
 // ============================================================
-//  val: -255 (tam geri) .. 0 (dur) .. 255 (tam ileri)
-//  pin1 ileri PWM, pin2 geri PWM — ayrı enable pini yok
+//  Bir motoru sür.
+//    val: -255 (tam geri) .. 0 (dur) .. 255 (tam ileri)
+//    pin1 ileri yön PWM, pin2 geri yön PWM.
+//  İki pine aynı anda PWM verilmez; biri her zaman 0 tutulur.
 // ============================================================
 void setMotorValue(int pin1, int pin2, int val) {
   if (val > 0) {
@@ -166,6 +302,8 @@ void setMotorValue(int pin1, int pin2, int val) {
   }
 }
 
+// ============================================================
+//  İki motoru da durdur.
 // ============================================================
 void stopMotors() {
   setMotorValue(MOTOR_A_PIN1, MOTOR_A_PIN2, 0);

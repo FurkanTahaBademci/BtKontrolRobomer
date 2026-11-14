@@ -38,7 +38,9 @@ class BluetoothProvider with ChangeNotifier {
   // Gecikme / Hız testi
   bool _isLatencyTesting = false;
   bool _isBurstTesting = false;
-  List<int> _latencyResults = [];
+  List<int> _latencyResults = []; // Gidiş-dönüş (P → P cevabı) ms
+  List<int> _latencyWriteResults = []; // Sadece yazma (write tamamlanma) ms
+  int _latencyTimeouts = 0; // Cevap gelmeyen örnek sayısı
   int _burstCommandsPerSec = 0;
   String? _latencyTestError;
 
@@ -53,7 +55,17 @@ class BluetoothProvider with ChangeNotifier {
   // Getters — test
   bool get isLatencyTesting => _isLatencyTesting;
   bool get isBurstTesting => _isBurstTesting;
+  /// Gerçek gidiş-dönüş süreleri ('P' gönder → robottan 'P' cevabı al)
   List<int> get latencyResults => List.unmodifiable(_latencyResults);
+
+  /// Sadece telefon tarafı yazma süreleri (BLE: write → onCharacteristicWrite)
+  List<int> get latencyWriteResults => List.unmodifiable(_latencyWriteResults);
+
+  /// Zaman aşımına uğrayan (cevap gelmeyen) örnek sayısı
+  int get latencyTimeouts => _latencyTimeouts;
+
+  /// Tamamlanan örnek sayısı (cevaplı + zaman aşımı)
+  int get latencyDoneCount => _latencyResults.length + _latencyTimeouts;
   int get burstCommandsPerSec => _burstCommandsPerSec;
   String? get latencyTestError => _latencyTestError;
 
@@ -406,46 +418,115 @@ class BluetoothProvider with ChangeNotifier {
     }
   }
 
-  /// Gecikme testi — N adet 'S' komutu göndererek BT yazma gecikmesini ölçer
+  /// Ping cevabı için örnek başına zaman aşımı
+  static const int latencyReplyTimeoutMs = 1500;
+
+  /// Gecikme testi — gerçek gidiş-dönüş ölçümü.
+  /// Her örnekte tek karakter 'P' gönderilir; firmware hemen "P\r\n" ile
+  /// cevap verir (BLE: FFE1 notify, Classic: input stream).
+  /// [latencyResults]: 'P' gönder → 'P' al (ms).
+  /// [latencyWriteResults]: sadece yazma çağrısının tamamlanma süresi (ms).
   Future<void> runLatencyTest({int samples = 20}) async {
-    if (!isConnected || _controller == null) {
+    final controller = _controller;
+    if (!isConnected || controller == null) {
       _latencyTestError = 'Test için bağlı cihaz gerekli';
       notifyListeners();
       return;
     }
     _isLatencyTesting = true;
     _latencyResults = [];
+    _latencyWriteResults = [];
+    _latencyTimeouts = 0;
     _latencyTestError = null;
     LogService.instance.info(
       'TEST',
-      'Gecikme testi başlatıldı ($samples örnek)',
+      'Gecikme testi (P→P gidiş-dönüş) başlatıldı ($samples örnek)',
     );
     notifyListeners();
+
+    const pingByte = 0x50; // 'P'
+    Completer<void>? pending;
+    final sub = controller.incomingDataStream.listen((data) {
+      if (data.contains(pingByte)) {
+        final c = pending;
+        if (c != null && !c.isCompleted) c.complete();
+      }
+    });
+
     try {
       for (int i = 0; i < samples; i++) {
         if (!isConnected) break;
+        final reply = Completer<void>();
+        pending = reply;
+
         final sw = Stopwatch()..start();
-        await _controller!.sendCommand(RobotCommand.stop);
+        final ok = await controller.sendRawString('P');
+        final writeMs = sw.elapsedMilliseconds;
+        if (!ok) {
+          pending = null;
+          _latencyTestError = 'Yazma başarısız (örnek ${i + 1})';
+          LogService.instance.error('TEST', _latencyTestError!);
+          break;
+        }
+
+        var replied = true;
+        final remaining = latencyReplyTimeoutMs - writeMs;
+        try {
+          await reply.future.timeout(
+            Duration(milliseconds: remaining > 0 ? remaining : 0),
+          );
+        } on TimeoutException {
+          replied = false;
+        }
         sw.stop();
-        _latencyResults = List.from(_latencyResults)
-          ..add(sw.elapsedMilliseconds);
+        pending = null;
+
+        _latencyWriteResults = List.from(_latencyWriteResults)..add(writeMs);
+        if (replied) {
+          _latencyResults = List.from(_latencyResults)
+            ..add(sw.elapsedMilliseconds);
+        } else {
+          _latencyTimeouts++;
+          LogService.instance.warn(
+            'TEST',
+            'Örnek ${i + 1}: ${latencyReplyTimeoutMs}ms içinde cevap yok',
+          );
+        }
         notifyListeners();
+
+        // Hiç cevap gelmiyorsa (eski firmware) tüm örnekleri bekleme
+        if (_latencyResults.isEmpty && _latencyTimeouts >= 3) break;
+
         await Future.delayed(const Duration(milliseconds: 60));
       }
-      if (_latencyResults.isNotEmpty) {
+
+      if (_latencyResults.isEmpty && _latencyTimeouts > 0) {
+        _latencyTestError =
+            'Robot cevap vermedi (eski firmware?) — '
+            'firmware \'P\' komutuna "P" ile cevap vermeli.';
+        LogService.instance.error('TEST', 'Ping cevabı alınamadı');
+      } else if (_latencyResults.isNotEmpty) {
         final avg =
             _latencyResults.reduce((a, b) => a + b) / _latencyResults.length;
         final mn = _latencyResults.reduce((a, b) => a < b ? a : b);
         final mx = _latencyResults.reduce((a, b) => a > b ? a : b);
+        final wAvg =
+            _latencyWriteResults.isEmpty
+                ? 0
+                : _latencyWriteResults.reduce((a, b) => a + b) /
+                    _latencyWriteResults.length;
         LogService.instance.success(
           'TEST',
-          'Gecikme bitti — min:${mn}ms ort:${avg.toStringAsFixed(1)}ms maks:${mx}ms',
+          'Gidiş-dönüş — min:${mn}ms ort:${avg.toStringAsFixed(1)}ms '
+              'maks:${mx}ms | yazma ort:${wAvg.toStringAsFixed(1)}ms'
+              '${_latencyTimeouts > 0 ? ' | zaman aşımı: $_latencyTimeouts' : ''}',
         );
       }
     } catch (e) {
       _latencyTestError = 'Hata: $e';
       LogService.instance.error('TEST', 'Gecikme testi hatası: $e');
     } finally {
+      await sub.cancel();
       _isLatencyTesting = false;
       notifyListeners();
     }
@@ -490,6 +571,8 @@ class BluetoothProvider with ChangeNotifier {
   /// Test sonuçlarını sıfırla
   void clearTestResults() {
     _latencyResults = [];
+    _latencyWriteResults = [];
+    _latencyTimeouts = 0;
     _burstCommandsPerSec = 0;
     _latencyTestError = null;
     notifyListeners();

@@ -39,6 +39,10 @@ abstract class BluetoothController {
   /// Ham string gönder (özel bloklar için)
   Future<bool> sendRawString(String data);
 
+  /// Robottan gelen ham veri akışı (BLE: FFE1 notify, Classic: input stream).
+  /// Gecikme (ping 'P' → 'P') testi için kullanılır.
+  Stream<List<int>> get incomingDataStream;
+
   /// BLE Write Without Response modunu zorla (klon modül uyumu için).
   /// Classic BT için no-op'tur.
   void setWriteWithoutResponseOverride(bool forced);

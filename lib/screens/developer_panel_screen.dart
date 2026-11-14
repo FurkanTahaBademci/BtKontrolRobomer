@@ -1503,14 +1503,14 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
                         ),
                         const SizedBox(width: 6),
                         const Text(
-                          'Gecikme Testi',
+                          'Gecikme Testi (Gidiş-Dönüş)',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
                           ),
                         ),
                         const Spacer(),
-                        if (results.isNotEmpty && !bt.isLatencyTesting)
+                        if (bt.latencyDoneCount > 0 && !bt.isLatencyTesting)
                           IconButton(
                             icon: const Icon(Icons.clear, size: 16),
                             onPressed: bt.clearTestResults,
@@ -1519,7 +1519,10 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
                       ],
                     ),
                     Text(
-                      'BT soket yazma gecikmesini ölçer. Bağlı cihaz gereklidir.',
+                      'Robota \'P\' gönderir, robotun "P" cevabı gelene kadar '
+                      'geçen gerçek gidiş-dönüş süresini ölçer. Ayrıca sadece '
+                      'telefon tarafı yazma süresi de gösterilir. Yeni firmware '
+                      've bağlı cihaz gereklidir.',
                       style: TextStyle(
                         fontSize: 11,
                         color: Theme.of(
@@ -1605,7 +1608,7 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            '${results.length} / $_latencySampleCount ölçüm...',
+                            '${bt.latencyDoneCount} / $_latencySampleCount ölçüm...',
                             style: const TextStyle(
                               fontSize: 12,
                               color: Colors.orange,
@@ -1627,7 +1630,8 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
                       ClipRRect(
                         borderRadius: BorderRadius.circular(4),
                         child: LinearProgressIndicator(
-                          value: results.length / _latencySampleCount,
+                          value: (bt.latencyDoneCount / _latencySampleCount)
+                              .clamp(0.0, 1.0),
                           minHeight: 8,
                           backgroundColor: Colors.orange.withOpacity(0.1),
                           color: Colors.orange,
@@ -1638,6 +1642,14 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
 
                     // Sonuç istatistikleri
                     if (results.isNotEmpty) ...[
+                      const Text(
+                        'Gidiş-dönüş (P gönder → P cevabı)',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
@@ -1662,9 +1674,9 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
                       Align(
                         alignment: Alignment.centerRight,
                         child: Text(
-                          results.where((v) => v <= 15).length == results.length
+                          results.where((v) => v <= 40).length == results.length
                               ? '✓ Gecikme İYİ'
-                              : results.where((v) => v > 30).length >
+                              : results.where((v) => v > 100).length >
                                   results.length ~/ 3
                               ? '⚠ Gecikme YÜKSEK'
                               : '~ Gecikme ORTA',
@@ -1672,10 +1684,10 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
                             color:
-                                results.where((v) => v <= 15).length ==
+                                results.where((v) => v <= 40).length ==
                                         results.length
                                     ? Colors.green
-                                    : results.where((v) => v > 30).length >
+                                    : results.where((v) => v > 100).length >
                                         results.length ~/ 3
                                     ? Colors.red
                                     : Colors.orange,
@@ -1684,6 +1696,42 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
                       ),
                       const SizedBox(height: 4),
                     ],
+
+                    // Sadece yazma süresi + zaman aşımları
+                    if (bt.latencyWriteResults.isNotEmpty) ...[
+                      Builder(
+                        builder: (context) {
+                          final w = bt.latencyWriteResults;
+                          final wAvg = w.reduce((a, b) => a + b) / w.length;
+                          final wMax = w.reduce((a, b) => a > b ? a : b);
+                          return Text(
+                            'Sadece yazma süresi (telefon → modül yazma onayı, '
+                            'robot cevabı hariç): ort ${wAvg.toStringAsFixed(1)}ms, '
+                            'maks ${wMax}ms',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontFamily: 'monospace',
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.7),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 4),
+                    ],
+                    if (bt.latencyTimeouts > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Text(
+                          'Cevap gelmeyen örnek: ${bt.latencyTimeouts} '
+                          '(zaman aşımı ${BluetoothProvider.latencyReplyTimeoutMs}ms)',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.orange.shade700,
+                          ),
+                        ),
+                      ),
 
                     if (bt.latencyTestError != null && !bt.isLatencyTesting)
                       Padding(
@@ -1928,9 +1976,9 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen>
             results.map((v) {
               final ratio = (v / maxVal).clamp(0.05, 1.0);
               final color =
-                  v <= 10
+                  v <= 40
                       ? Colors.green
-                      : v <= 30
+                      : v <= 100
                       ? Colors.orange
                       : Colors.red;
               return Expanded(

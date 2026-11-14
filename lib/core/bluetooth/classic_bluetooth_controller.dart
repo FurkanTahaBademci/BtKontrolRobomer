@@ -30,6 +30,7 @@ class ClassicBluetoothController implements BluetoothController {
       StreamController<List<BluetoothDeviceModel>>.broadcast();
   final _connectionStateController =
       StreamController<app_state.ConnectionState>.broadcast();
+  final _incomingController = StreamController<List<int>>.broadcast();
 
   app_state.ConnectionState _currentState =
       app_state.ConnectionState.disconnected;
@@ -45,6 +46,9 @@ class ClassicBluetoothController implements BluetoothController {
   @override
   Stream<app_state.ConnectionState> get connectionStateStream =>
       _connectionStateController.stream;
+
+  @override
+  Stream<List<int>> get incomingDataStream => _incomingController.stream;
 
   @override
   app_state.ConnectionState get currentConnectionState => _currentState;
@@ -139,7 +143,8 @@ class ClassicBluetoothController implements BluetoothController {
         // Gelen verileri dinle
         _dataSubscription = _connection!.input!.listen(
           (Uint8List data) {
-            // Arduino'dan gelen veri burada işlenebilir
+            // Arduino'dan gelen veri (ör. ping cevabı "P\r\n")
+            if (!_incomingController.isClosed) _incomingController.add(data);
           },
           onDone: () {
             // Bağlantı uzak taraftan kesildi—soketi kapamaya çalışma (zaten kapandı)
@@ -307,6 +312,7 @@ class ClassicBluetoothController implements BluetoothController {
     disconnect();
     _devicesController.close();
     _connectionStateController.close();
+    _incomingController.close();
   }
 
   void _updateConnectionState(app_state.ConnectionState newState) {

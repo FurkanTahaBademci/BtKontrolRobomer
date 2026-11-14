@@ -244,21 +244,18 @@ class _DeviceScanScreenState extends State<DeviceScanScreen> {
       );
     }
 
+    final orderedDevices = _stableOrderedDevices(provider);
+    final history = context.read<ConnectionHistoryProvider>().history;
+    final lastConnectedAddress =
+        history.isNotEmpty ? history.first.address : null;
+
     return ListView.builder(
       padding: const EdgeInsets.only(top: 8, bottom: 16),
-      itemCount: provider.devices.length,
+      itemCount: orderedDevices.length,
       itemBuilder: (context, index) {
-        final sortedDevices = _sortedDevices(provider);
-        final device = sortedDevices[index];
-        final lastConnectedAddress =
-            context.read<ConnectionHistoryProvider>().history.isNotEmpty
-                ? context
-                    .read<ConnectionHistoryProvider>()
-                    .history
-                    .first
-                    .address
-                : null;
+        final device = orderedDevices[index];
         return DeviceListTile(
+          key: ValueKey(device.address),
           device: device,
           onTap: () => _connectToDevice(device, provider),
           isScanning: provider.isScanning,
@@ -275,33 +272,38 @@ class _DeviceScanScreenState extends State<DeviceScanScreen> {
     );
   }
 
-  /// Tarama tamamlanınca listeyi sırala:
-  /// 1. Son bağlanan cihaz (geçmişin ilk elemanı)
-  /// 2. Aktif cihazlar (RSSI var) — sinyal gücüne göre güçlüden zayıfa
-  /// 3. Kapsama dışı cihazlar
-  List<BluetoothDeviceModel> _sortedDevices(BluetoothProvider provider) {
-    // Tarama devam ederken sıralama yapma
-    if (provider.isScanning) return provider.devices;
+  /// Ekranda gösterilen cihaz sırası (adres listesi). Tarama sırasında ve
+  /// sonrasında satırlar yer değiştirmesin diye sabit tutulur — aksi halde
+  /// kullanıcı dokunurken liste kayıp yanlış cihaza bağlanılıyordu.
+  final List<String> _displayOrder = [];
 
-    final history = context.read<ConnectionHistoryProvider>().history;
-    final lastAddress = history.isNotEmpty ? history.first.address : null;
+  /// Kararlı sıra:
+  /// - Yeni cihazlar listenin sonuna eklenir, mevcut satırlar yerinde kalır
+  ///   (RSSI sadece yerinde güncellenir, yeniden sıralama yok).
+  /// - Son bağlanan cihaz yalnızca ilk görünen grupta varsa en üste konur;
+  ///   sonradan bulunursa diğer satırları kaydırmamak için sona eklenir.
+  /// - Provider listesi temizlenince (yeni tarama) sıra sıfırlanır.
+  List<BluetoothDeviceModel> _stableOrderedDevices(BluetoothProvider provider) {
+    final byAddress = {for (final d in provider.devices) d.address: d};
 
-    final sorted = [...provider.devices];
-    sorted.sort((a, b) {
-      final aIsLast = a.address == lastAddress;
-      final bIsLast = b.address == lastAddress;
-      if (aIsLast && !bIsLast) return -1;
-      if (!aIsLast && bIsLast) return 1;
+    _displayOrder.removeWhere((a) => !byAddress.containsKey(a));
 
-      final aActive = a.rssi != null;
-      final bActive = b.rssi != null;
-      if (aActive && !bActive) return -1;
-      if (!aActive && bActive) return 1;
-      if (aActive && bActive) return b.rssi!.compareTo(a.rssi!);
+    final known = _displayOrder.toSet();
+    final newOnes =
+        provider.devices.where((d) => !known.contains(d.address)).toList();
 
-      return 0;
-    });
-    return sorted;
+    if (newOnes.isNotEmpty) {
+      if (_displayOrder.isEmpty) {
+        // İlk grup: son bağlanan cihazı bir kez en üste yerleştir
+        final history = context.read<ConnectionHistoryProvider>().history;
+        final lastAddress = history.isNotEmpty ? history.first.address : null;
+        final lastIdx = newOnes.indexWhere((d) => d.address == lastAddress);
+        if (lastIdx > 0) newOnes.insert(0, newOnes.removeAt(lastIdx));
+      }
+      _displayOrder.addAll(newOnes.map((d) => d.address));
+    }
+
+    return [for (final a in _displayOrder) byAddress[a]!];
   }
 
   Future<void> _connectToDevice(

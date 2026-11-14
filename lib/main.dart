@@ -50,7 +50,7 @@ class MyApp extends StatelessWidget {
       ],
       child: Consumer<SettingsProvider>(
         builder: (context, settings, _) {
-          final sharedCardTheme = CardTheme(
+          final sharedCardTheme = CardThemeData(
             elevation: 2,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),

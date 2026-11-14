@@ -24,7 +24,7 @@ android {
         applicationId = "com.robotcontrol.bt_kontrol_robomer"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 21  // Android 5.0 - Bluetooth desteği için
+        minSdk = flutter.minSdkVersion  // Android 5.0 - Bluetooth desteği için
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

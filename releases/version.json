@@ -1,10 +1,10 @@
 {
-  "latestVersion": "1.0.12",
-  "versionCode": 15,
-  "downloadUrl": "https://github.com/FurkanTahaBademci/BtKontrolRobomer/releases/download/v1.0.12/app-release.apk",
-  "releaseNotes": "🐛 v1.0.12 — Hata Düzeltmeleri\n\n- Özel bloklar buton düzenleme ekranında artık görünüyor ve sürüklenebiliyor\n- Butona tıklayınca sağa/sola kayma (drift) sorunu düzeltildi\n- Genel kararlılık iyileştirmeleri",
+  "latestVersion": "1.0.13",
+  "versionCode": 16,
+  "downloadUrl": "https://github.com/FurkanTahaBademci/BtKontrolRobomer/releases/download/v1.0.13/app-release.apk",
+  "releaseNotes": "⚡ v1.0.13 — Gecikme İyileştirmeleri\n\n- BLE bağlantısında düşük gecikme modu (tepki süresi yaklaşık yarıya indi)\n- Hız ayarı artık kaybolmuyor\n- Tarama sırasında cihaz listesi kaymıyor, yanlış cihaza bağlanma önlendi\n- Geliştirici panelinde robotun gerçek tepki süresini ölçen gecikme testi\n\n🤖 Robot için yeni Arduino kodu önerilir (1 sn gecikme ve kaybolan komut sorunu giderildi). HC-05 bağlantısı: TX→D8, RX→D4.",
   "minRequiredVersion": "1.0.0",
   "forceUpdate": false,
-  "fileSize": "22 MB",
-  "releaseDate": "2026-04-25"
+  "fileSize": "52 MB",
+  "releaseDate": "2026-11-14"
 }
